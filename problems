@@ -1,0 +1,3 @@
+1. As in MPC, bandwidth is predicted for each seg downloading (continuously). But in live, there might be gap for each seg. Is it still doable?
+
+2.
