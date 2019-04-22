@@ -307,10 +307,11 @@ def main():
 	n_rate = ['rate']
 	n_starting_time  = ['starting_time']
 
-	log_path = RESULT_FILE + 'table_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
+	log_path = RESULT_FILE + 'table_mpcchunk'
 	log_file = open(log_path, 'wb')
 
 	for i in range(len(file_records)):
+		# print file_records[i]
 		starting_time = float(file_records[i][-1][0])
 		tp_trace = np.array(file_records[i][-2]).astype(np.float)
 		records = file_records[i][1:-2]

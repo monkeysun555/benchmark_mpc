@@ -2,7 +2,7 @@ import os
 import numpy as np
 
 DATA_DIR = '../bw_traces/'
-TRACE_NAME = '../bw_traces/BKLYN_1.txt'
+TRACE_NAME = '../../bw_traces/BKLYN_1.txt'
 
 def loadBandwidth(data_dir = DATA_DIR):
 	datas = os.listdir(data_dir)

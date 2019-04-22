@@ -5,6 +5,9 @@ import live_player_chunk as live_player
 import live_server_chunk as live_server
 import load
 import mpc_solver_chunk as mpc
+
+IF_NEW = 1
+IF_ALL_TESTING = 1
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 # BITRATE = [300.0, 6000.0]
@@ -31,11 +34,11 @@ USER_FREEZING_TOL = 3000.0											# Single time freezing time upper bound
 USER_LATENCY_TOL = SERVER_START_UP_TH + USER_FREEZING_TOL			# Accumulate latency upperbound
 
 ACTION_REWARD = 1.0 * CHUNK_SEG_RATIO	
-REBUF_PENALTY = 10.0		# for second
+REBUF_PENALTY = 3.0						# for second
 SMOOTH_PENALTY = 1.0
 LONG_DELAY_PENALTY = 1.0 * CHUNK_SEG_RATIO 
-LONG_DELAY_PENALTY_BASE = 1.2	# for second
-MISSING_PENALTY = 2.0			# not included
+LONG_DELAY_PENALTY_BASE = 1.2				# for second
+MISSING_PENALTY = 3.0 * CHUNK_SEG_RATIO		# not included
 # UNNORMAL_PLAYING_PENALTY = 1.0 * CHUNK_FRAG_RATIO
 # FAST_PLAYING = 1.1		# For 1
 # NORMAL_PLAYING = 1.0	# For 0
@@ -168,6 +171,9 @@ def main():
 				log_last_bit_rate = log_bit_rate
 			else:
 				log_last_bit_rate = np.log(BITRATE[last_bit_rate] / BITRATE[0])
+
+			last_bit_rate = bit_rate	# Do no move this term. This is for chunk continuous calcualtion
+
 			# print(log_bit_rate, log_last_bit_rate)
 			reward = ACTION_REWARD * log_bit_rate * chunk_number \
 					- REBUF_PENALTY * freezing / MS_IN_S \
@@ -205,10 +211,8 @@ def main():
 					pass
 				else:
 					take_action = 1
-					last_bit_rate = bit_rate
 					mpc_tp_rec = mpc.update_mpc_rec(mpc_tp_rec, current_mpc_tp * KB_IN_MB)
 					r_batch.append(action_reward)
-					action_reward = 0.0
 
 					log_file.write(	str(server.get_time()) + '\t' +
 								    str(BITRATE[bit_rate]) + '\t' +
@@ -220,8 +224,9 @@ def main():
 								    str(latency) + '\t' +
 								    str(player.get_state()) + '\t' +
 								    str(int(bit_rate/len(BITRATE))) + '\t' +						    
-									str(reward) + '\n')
+									str(action_reward) + '\n')
 					log_file.flush()
+					action_reward = 0.0
 					break
 
 	# need to modify

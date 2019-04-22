@@ -4,7 +4,8 @@ import numpy as np
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 # BITRATE = [300.0, 6000.0]
 
-RTT = 20.0
+RTT_LOW = 30.0
+RTT_HIGH = 40.0
 MS_IN_S = 1000.0
 KB_IN_MB = 1000.0
 
@@ -94,14 +95,21 @@ def mpc_solver_chunk(mpc_input):
 		download_time = 0.0
 		freezing = 0.0
 		wait_time = 0.0
-		current_reward = 0.0
+		current_reward = pre_reward
 		missing_count = 0
 		current_tp = pred_tp[k]
 		downloaded_chunks = 0
 		chunk_num = int(np.minimum((server_time - playback_time - buffer_length)/CHUNK_DURATION, CHUNK_IN_SEG - downloaded_chunks))
 		# print "Init chunk num: ", chunk_num
 		while True:
-			download_time = np.sum(current_chunks[downloaded_chunks:downloaded_chunks+chunk_num]) /current_tp * MS_IN_S + RTT
+			if downloaded_chunks == 0:
+				C_RTT = RTT_LOW
+			else: 
+				C_RTT = 0.0
+			# print np.sum(current_chunks[downloaded_chunks:downloaded_chunks+chunk_num])
+			# print current_tp
+			download_time = np.sum(current_chunks[downloaded_chunks:downloaded_chunks+chunk_num])/current_tp * MS_IN_S + C_RTT
+			# print "Download time: ", download_time
 			if state == 0:
 				freezing = download_time
 				temp_buffer_to_accu = buffer_to_accu - CHUNK_DURATION * chunk_num
@@ -148,17 +156,20 @@ def mpc_solver_chunk(mpc_input):
 			# print "After fetching, buffer is: ", buffer_length, " download time: ", download_time
 			# print "chunk num: ", chunk_num
 			last_bit_rate = i
-			current_reward = pre_reward \
-							+ ACTION_REWARD * log_bit_rate * chunk_num \
+			current_reward += ACTION_REWARD * log_bit_rate * chunk_num \
 							- REBUF_PENALTY * freezing / MS_IN_S \
 							- SMOOTH_PENALTY * np.abs(log_bit_rate - log_last_bit_rate) \
 							- LONG_DELAY_PENALTY*(LONG_DELAY_PENALTY_BASE**(ReLU(latency-TARGET_LATENCY)/ MS_IN_S)-1) * chunk_num \
 							- MISSING_PENALTY * missing_count
 			
 			downloaded_chunks += chunk_num
-			chunk_num = int(np.minimum((server_time - playback_time - buffer_length)/CHUNK_DURATION, CHUNK_IN_SEG - downloaded_chunks))
 			if downloaded_chunks == CHUNK_IN_SEG:
 				break
+			assert downloaded_chunks < CHUNK_IN_SEG
+			chunk_num = int(np.minimum(np.round((server_time - playback_time - buffer_length)/CHUNK_DURATION, 3), CHUNK_IN_SEG - downloaded_chunks))
+			# print server_time, playback_time, buffer_length
+			assert chunk_num > 0
+
 
 
 		seq.append(i)
@@ -174,6 +185,7 @@ def mpc_solver_chunk(mpc_input):
 		# print "<----------->"
 
 		current_len = len(sys_state)
+		# print current_len
 		j = 0
 		while j < current_len:
 			# print sys_state, k, j

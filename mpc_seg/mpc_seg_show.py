@@ -273,6 +273,8 @@ def main():
 	results = os.listdir(RESULT_DIR)
 	file_records = []
 	for data in results:
+		if 'txt' not in data:
+			continue
 		file_info = []
 		file_path = RESULT_DIR + data
 		file_info.append(data.split('.')[0])
@@ -307,7 +309,7 @@ def main():
 	n_rate = ['rate']
 	n_starting_time  = ['starting_time']
 
-	log_path = RESULT_FILE + 'table_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
+	log_path = RESULT_FILE + 'table_mpcseg'
 	log_file = open(log_path, 'wb')
 
 	for i in range(len(file_records)):

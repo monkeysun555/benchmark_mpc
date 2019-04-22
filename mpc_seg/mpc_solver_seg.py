@@ -8,7 +8,8 @@ SEG_DURATION = 1000.0
 USER_START_UP_TH = 2000.0
 SERVER_START_UP_TH = 2000.0
 TARGET_LATENCY = SERVER_START_UP_TH + 0.5 * SEG_DURATION
-RTT = 20.0
+RTT_LOW = 30.0
+RTT_HIGH = 40.0 
 MS_IN_S = 1000.0
 KB_IN_MB = 1000.0
 
@@ -56,13 +57,13 @@ def mpc_solver_seg(mpc_input):
 		missing_count = 0
 		current_tp = pred_tp[k]
 
-		download_time = BITRATE[i]/current_tp * MS_IN_S + RTT
+		download_time = BITRATE[i]/current_tp * MS_IN_S + RTT_LOW
 		if state == 0:
 			freezing += download_time
 			temp_buffer_to_accu = buffer_to_accu - SEG_DURATION
 			if temp_buffer_to_accu == 0.0:
 				state = 1
-			assert playback_time == 0.0
+			# assert playback_time == 0.0
 			buffer_length += SEG_DURATION
 
 		else:
