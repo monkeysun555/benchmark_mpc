@@ -102,7 +102,7 @@ def t_main():
 											start_up_th=SERVER_START_UP_TH, randomSeed=RANDOM_SEED)
 
 		initial_delay = server.get_time() - player.get_playing_time()	# This initial delay, cannot be reduced, all latency is calculated based on this
-		print initial_delay
+		print initial_delay, cooked_name
 		log_path = LOG_FILE + '_' + cooked_name
 		log_file = open(log_path, 'wb')
 
