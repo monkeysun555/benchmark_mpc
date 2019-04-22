@@ -16,8 +16,8 @@ RANDOM_SEED = 13
 RAND_RANGE = 1000
 MS_IN_S = 1000.0
 KB_IN_MB = 1000.0	# in ms
-
 INIT_BW = BITRATE[0]
+
 SEG_DURATION = 1000.0
 # FRAG_DURATION = 1000.0
 CHUNK_DURATION = 200.0
@@ -45,21 +45,26 @@ MISSING_PENALTY = 3.0 * CHUNK_SEG_RATIO		# not included
 # SLOW_PLAYING = 0.9		# For -1
 
 TEST_DURATION = 100				# Number of testing <===================== Change length here
-
 RATIO_LOW_2 = 2.0				# This is the lowest ratio between first chunk and the sum of all others
 RATIO_HIGH_2 = 10.0			# This is the highest ratio between first chunk and the sum of all others
 RATIO_LOW_5 = 0.75				# This is the lowest ratio between first chunk and the sum of all others
 RATIO_HIGH_5 = 1.0			# This is the highest ratio between first chunk and the sum of all others
-
 MPC_STEP = 5
 # bitrate number is 6, no bin
 
-DATA_DIR = '../../bw_traces/'
-SUMMARY_DIR = './test_results'
-LOG_FILE = './test_results/mpcchunk'
-# TRACE_NAME = '../bw_traces/BKLYN_1.txt'
-TRACE_NAME = '70ms_loss0.5_m5.txt'
-# TRAIN_TRACES = './traces/bandwidth/'
+if not IF_NEW:
+	DATA_DIR = '../../bw_traces/'
+	TRACE_NAME = '70ms_loss0.5_m5.txt'
+else:
+	DATA_DIR = '../../new_traces/test_sim_traces/'
+	TRACE_NAME = 'norway_car_10'
+
+if not IF_ALL_TESTING:
+	LOG_FILE_DIR = './test_results'
+	LOG_FILE = LOG_FILE_DIR + '/MPCCHUNK_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
+else:
+	LOG_FILE_DIR = './all_test_results'
+	LOG_FILE = LOG_FILE_DIR + '/MPCCHUNK_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 
 def ReLU(x):
 	return x * (x > 0)
@@ -74,13 +79,182 @@ def record_tp(tp_trace, starting_time_idx, duration):
 		tp_record.append(tp_trace[starting_time_idx + i + offset])
 	return tp_record
 
+def t_main():
+	np.random.seed(RANDOM_SEED)
+	if not os.path.exists(LOG_FILE_DIR):
+		os.makedirs(LOG_FILE_DIR)
+	cooked_times, cooked_bws, cooked_names = load.new_loadBandwidth(DATA_DIR)
+
+	for i in range(len(cooked_times)):
+		cooked_time = cooked_times[i]
+		cooked_bw = cooked_bws[i]
+		cooked_name = cooked_names[i]
+
+		# Trick here. For the initial bandwidth, directly get the first 5 value
+		mpc_tp_rec = [INIT_BW] * MPC_STEP
+		mpc_tp_pred = []
+
+		player = live_player.Live_Player(time_trace=cooked_time, throughput_trace=cooked_bw, 
+											seg_duration=SEG_DURATION, chunk_duration=CHUNK_DURATION,
+											start_up_th=USER_START_UP_TH, freezing_tol=USER_FREEZING_TOL, latency_tol = USER_LATENCY_TOL,
+											randomSeed=RANDOM_SEED)
+		server = live_server.Live_Server(seg_duration=SEG_DURATION, chunk_duration=CHUNK_DURATION, 
+											start_up_th=SERVER_START_UP_TH, randomSeed=RANDOM_SEED)
+
+		initial_delay = server.get_time() - player.get_playing_time()	# This initial delay, cannot be reduced, all latency is calculated based on this
+		print initial_delay
+		log_path = LOG_FILE + '_' + cooked_name
+		log_file = open(log_path, 'wb')
+
+		init = 1
+		starting_time = server.get_time()	# Server starting time
+		starting_time_idx = player.get_time_idx()
+		buffer_length = 0.0
+		r_batch = []
+		last_bit_rate = -1
+
+		for i in range(TEST_DURATION):
+			print "Current index: ", i
+			if init: 
+				if CHUNK_IN_SEG == 5:
+					ratio = np.random.uniform(RATIO_LOW_5, RATIO_HIGH_5)
+				else:
+					ratio = np.random.uniform(RATIO_LOW_2, RATIO_HIGH_2)
+				
+				server.set_ratio(ratio)
+				server.init_encoding()
+				init = 0
+
+			mpc_tp_pred = mpc.predict_mpc_tp(mpc_tp_rec)
+			bit_rate_seq, opt_reward = mpc.mpc_find_action_chunk([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
+									 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, [], ratio])
+			bit_rate = bit_rate_seq[0]
+			# print "Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward
+			# bit_rate = upper_actions[i]		# Get optimal actions
+			action_reward = 0.0				# Total reward is for all chunks within on segment
+			take_action = 1
+			current_mpc_tp = 0.0
+			seg_freezing = 0.0
+			seg_wait = 0.0
+
+			while True:  # serve video forever
+				download_chunk_info = server.get_next_delivery()
+				download_seg_idx = download_chunk_info[0]
+				download_chunk_idx = download_chunk_info[1]
+				download_chunk_end_idx = download_chunk_info[2]
+				download_chunk_size = download_chunk_info[3][bit_rate]		# Might be several chunks
+				chunk_number = download_chunk_end_idx - download_chunk_idx + 1
+				server_wait_time = 0.0
+				sync = 0
+				missing_count = 0
+				if download_seg_idx > TEST_DURATION:
+					break
+
+				real_chunk_size, download_duration, freezing, time_out, player_state = player.fetch(download_chunk_size, 
+																		download_seg_idx, download_chunk_idx, take_action, chunk_number)
+				take_action = 0
+				current_mpc_tp += chunk_number/CHUNK_IN_SEG * real_chunk_size / download_duration
+				buffer_length = player.get_buffer_length()
+				seg_freezing += freezing
+				server_time = server.update(download_duration)
+				if not time_out:
+					# server.chunks.pop(0)
+					server.clean_next_delivery()
+					sync = player.check_resync(server_time)
+				else:
+					assert player.get_state() == 0
+					assert np.round(player.buffer, 3) == 0.0
+					# Pay attention here, how time out influence next reward, the smoothness
+					# Bit_rate will recalculated later, this is for reward calculation
+					bit_rate = 0
+					sync = 1
+				# Disable sync for current situation
+				if sync:
+					# To sync player, enter start up phase, buffer becomes zero
+					sync_time, missing_count = server.sync_encoding_buffer()
+					player.sync_playing(sync_time)
+					buffer_length = player.get_buffer_length()
+
+				latency = server.get_time() - player.get_playing_time()
+				# print "latency is: ", latency/MS_IN_S
+				player_state = player.get_state()
+
+				log_bit_rate = np.log(BITRATE[bit_rate] / BITRATE[0])
+				if last_bit_rate == -1:
+					log_last_bit_rate = log_bit_rate
+				else:
+					log_last_bit_rate = np.log(BITRATE[last_bit_rate] / BITRATE[0])
+				last_bit_rate = bit_rate	# Do no move this term. This is for chunk continuous calcualtion
+
+				reward = ACTION_REWARD * log_bit_rate * chunk_number \
+						- REBUF_PENALTY * freezing / MS_IN_S \
+						- SMOOTH_PENALTY * np.abs(log_bit_rate - log_last_bit_rate) \
+						- LONG_DELAY_PENALTY*(LONG_DELAY_PENALTY_BASE**(ReLU(latency-TARGET_LATENCY)/ MS_IN_S)-1) * chunk_number \
+						- MISSING_PENALTY * missing_count
+						# - UNNORMAL_PLAYING_PENALTY*(playing_speed-NORMAL_PLAYING)*download_duration/MS_IN_S
+				# print(reward)
+				action_reward += reward
+
+				# chech whether need to wait, using number of available segs
+				if server.check_chunks_empty():
+					# print "Enter wait"
+					server_wait_time = server.wait()
+					seg_wait += server_wait_time
+					# print " Has to wait: ", server_wait_time
+					assert server_wait_time > 0.0
+					assert server_wait_time < CHUNK_DURATION
+					# print "Before wait, player: ", player.get_playing_time(), player.get_real_time()
+					player.wait(server_wait_time)
+					# print "After wait, player: ", player.get_playing_time(), player.get_real_time()
+					buffer_length = player.get_buffer_length()
+
+				# print "After wait, ", server.get_time() - (seg_idx + 1) * SEG_DURATION
+				if CHUNK_IN_SEG == 5:
+					ratio = np.random.uniform(RATIO_LOW_5, RATIO_HIGH_5)
+				else:
+					ratio = np.random.uniform(RATIO_LOW_2, RATIO_HIGH_2)
+				server.set_ratio(ratio)
+				server.generate_next_delivery()
+				next_chunk_idx = server.get_next_delivery()[1]
+				if next_chunk_idx == 0 or sync:
+					# Record state and get reward
+					take_action = 1
+					mpc_tp_rec = mpc.update_mpc_rec(mpc_tp_rec, current_mpc_tp * KB_IN_MB)
+					r_batch.append(action_reward)
+					log_file.write(	str(server.get_time()) + '\t' +
+								    str(BITRATE[bit_rate]) + '\t' +
+									str(buffer_length) + '\t' +
+									str(freezing) + '\t' +
+									str(time_out) + '\t' +
+									str(server_wait_time) + '\t' +
+								    str(sync) + '\t' +
+								    str(latency) + '\t' +
+								    str(player.get_state()) + '\t' +
+								    str(int(bit_rate/len(BITRATE))) + '\t' +						    
+									str(action_reward) + '\n')
+					log_file.flush()
+					action_reward = 0.0
+					break
+
+		# need to modify
+		time_duration = server.get_time() - starting_time
+		tp_record = record_tp(player.get_throughput_trace(), starting_time_idx, time_duration) 
+		log_file.write('\t'.join(str(tp) for tp in tp_record))
+		log_file.write('\n' + str(starting_time))
+		log_file.write('\n')
+		log_file.close()
+
 def main():
 	np.random.seed(RANDOM_SEED)
 
-	if not os.path.exists(SUMMARY_DIR):
-		os.makedirs(SUMMARY_DIR)
+	if not os.path.exists(LOG_FILE_DIR):
+		os.makedirs(LOG_FILE_DIR)
 
-	cooked_time, cooked_bw = load.load_single_trace(DATA_DIR + TRACE_NAME)
+	if not IF_NEW:
+		cooked_time, cooked_bw = load.load_single_trace(DATA_DIR + TRACE_NAME)
+	else:
+		cooked_time, cooked_bw = load.new_load_single_trace(DATA_DIR + TRACE_NAME)
+	
 	# Trick here. For the initial bandwidth, directly get the first 5 value
 	mpc_tp_rec = [INIT_BW] * MPC_STEP
 	mpc_tp_pred = []
@@ -125,6 +299,8 @@ def main():
 		action_reward = 0.0				# Total reward is for all chunks within on segment
 		take_action = 1
 		current_mpc_tp = 0.0
+		seg_freezing = 0.0
+		seg_wait = 0.0
 
 		while True:  # serve video forever
 			download_chunk_info = server.get_next_delivery()
@@ -141,7 +317,7 @@ def main():
 			take_action = 0
 			current_mpc_tp += chunk_number/CHUNK_IN_SEG * real_chunk_size / download_duration
 			buffer_length = player.get_buffer_length()
-
+			seg_freezing += freezing
 			server_time = server.update(download_duration)
 			if not time_out:
 				# server.chunks.pop(0)
@@ -156,6 +332,7 @@ def main():
 				sync = 1
 			# Disable sync for current situation
 			if sync:
+				print "Should not happen!"
 				break	# No resync here
 				# To sync player, enter start up phase, buffer becomes zero
 				sync_time, missing_count = server.sync_encoding_buffer()
@@ -171,10 +348,8 @@ def main():
 				log_last_bit_rate = log_bit_rate
 			else:
 				log_last_bit_rate = np.log(BITRATE[last_bit_rate] / BITRATE[0])
-
 			last_bit_rate = bit_rate	# Do no move this term. This is for chunk continuous calcualtion
 
-			# print(log_bit_rate, log_last_bit_rate)
 			reward = ACTION_REWARD * log_bit_rate * chunk_number \
 					- REBUF_PENALTY * freezing / MS_IN_S \
 					- SMOOTH_PENALTY * np.abs(log_bit_rate - log_last_bit_rate) \
@@ -188,6 +363,7 @@ def main():
 			if server.check_chunks_empty():
 				# print "Enter wait"
 				server_wait_time = server.wait()
+				seg_wait += server_wait_time
 				# print " Has to wait: ", server_wait_time
 				assert server_wait_time > 0.0
 				assert server_wait_time < CHUNK_DURATION
@@ -239,4 +415,8 @@ def main():
 	log_file.close()
 
 if __name__ == '__main__':
-	main()
+	if IF_ALL_TESTING:
+		assert IF_NEW == 1
+		t_main()
+	else:
+		main()

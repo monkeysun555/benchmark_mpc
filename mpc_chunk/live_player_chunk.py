@@ -27,7 +27,6 @@ class Live_Player(object):
 	def __init__(self, time_trace, throughput_trace, seg_duration, chunk_duration, start_up_th, freezing_tol, latency_tol, randomSeed = RANDOM_SEED):
 		np.random.seed(randomSeed)
 		self.seg_duration = seg_duration
-		# self.frag_duration = frag_duration
 		self.chunk_duration = chunk_duration
 		self.start_up_th = start_up_th
 		self.freezing_tol = freezing_tol
@@ -41,8 +40,7 @@ class Live_Player(object):
 		self.last_trace_time = 0.0
 		self.buffer = 0.0
 		self.state = 0
-		
-		print('player initial finish')
+		# print('player initial finish')
 
 	def clone_from_state(self, real_timing, buffer_length, state, playing_time):
 		self.playing_time = playing_time 	# Due to quantize, there might be small error

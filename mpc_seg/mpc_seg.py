@@ -52,7 +52,6 @@ RATIO_HIGH_5 = 1.0			# This is the highest ratio between first chunk and the sum
 MPC_STEP = 5
 # bitrate number is 6, no bin
 
-
 if not IF_NEW:
 	DATA_DIR = '../../bw_traces/'
 	TRACE_NAME = '70ms_loss0.5_m5.txt'
@@ -131,7 +130,6 @@ def t_main():
 			# If sync happen, and just break
 			if download_seg_idx > TEST_DURATION:
 				break
-
 			server_wait_time = 0.0
 			sync = 0
 			missing_count = 0
@@ -192,26 +190,21 @@ def t_main():
 			mpc_tp_rec = mpc.update_mpc_rec(mpc_tp_rec, real_seg_size/download_duration * KB_IN_MB)
 
 			server.generate_next_delivery()			
-			if sync:
-				# Process sync
-				print "Should not happen!!!!!!"
-				pass
-			else:
-				# print(action_reward)
-				r_batch.append(reward)
-				log_file.write(	str(server.get_time()) + '\t' +
-							    str(BITRATE[bit_rate]) + '\t' +
-								str(buffer_length) + '\t' +
-								str(freezing) + '\t' +
-								str(time_out) + '\t' +
-								str(server_wait_time) + '\t' +
-							    str(sync) + '\t' +
-							    str(latency) + '\t' +
-							    str(player.get_state()) + '\t' +
-							    str(int(bit_rate/len(BITRATE))) + '\t' +						    
-								str(reward) + '\n')
-				log_file.flush()
-				reward = 0.0
+			# print(action_reward)
+			r_batch.append(reward)
+			log_file.write(	str(server.get_time()) + '\t' +
+						    str(BITRATE[bit_rate]) + '\t' +
+							str(buffer_length) + '\t' +
+							str(freezing) + '\t' +
+							str(time_out) + '\t' +
+							str(server_wait_time) + '\t' +
+						    str(sync) + '\t' +
+						    str(latency) + '\t' +
+						    str(player.get_state()) + '\t' +
+						    str(int(bit_rate/len(BITRATE))) + '\t' +						    
+							str(reward) + '\n')
+			log_file.flush()
+			reward = 0.0
 
 		# need to modify
 		time_duration = server.get_time() - starting_time

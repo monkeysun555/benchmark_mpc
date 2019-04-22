@@ -40,7 +40,7 @@ class Live_Player(object):
 		self.buffer = 0.0
 		self.state = 0
 		
-		print('player initial finish')
+		# print('player initial finish')
 
 	def clone_from_state(self, real_timing, buffer_length, state, playing_time):
 		self.playing_time = playing_time 	# Due to quantize, there might be small error
@@ -55,7 +55,7 @@ class Live_Player(object):
 
 	def fetch(self, seg_size, seg_idx, playing_speed = 1.0):
 		# Action initialization
-		print "start fetching, seg idx is:", seg_idx
+		# print "start fetching, seg idx is:", seg_idx
 		start_state = self.state
 		seg_start_time = seg_idx * self.seg_duration
 		# as mpd is based on prediction, there is noise
