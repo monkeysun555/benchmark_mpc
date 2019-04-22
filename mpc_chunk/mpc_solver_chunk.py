@@ -1,4 +1,4 @@
-import cplex
+# import cplex
 import numpy as np
 
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
