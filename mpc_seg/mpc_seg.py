@@ -36,7 +36,7 @@ USER_LATENCY_TOL = SERVER_START_UP_TH + USER_FREEZING_TOL			# Accumulate latency
 ACTION_REWARD = 1.0 	
 REBUF_PENALTY = 3.0				# for second
 SMOOTH_PENALTY = 1.0
-LONG_DELAY_PENALTY = 1.0 
+LONG_DELAY_PENALTY = 5.0 
 LONG_DELAY_PENALTY_BASE = 1.2	# for second
 MISSING_PENALTY = 3.0			# not included
 # UNNORMAL_PLAYING_PENALTY = 1.0 * CHUNK_FRAG_RATIO
@@ -69,15 +69,42 @@ else:
 def ReLU(x):
 	return x * (x > 0)
 
-def record_tp(tp_trace, starting_time_idx, duration):
+def record_tp(tp_trace, time_trace, starting_time_idx, duration):
 	tp_record = []
+	time_record = []
 	offset = 0
+	time_offset = 0.0
 	num_record = int(np.ceil(duration/SEG_DURATION))
 	for i in range(num_record):
 		if starting_time_idx + i + offset >= len(tp_trace):
 			offset = -len(tp_trace)
+			time_offset += time_trace[-1]
 		tp_record.append(tp_trace[starting_time_idx + i + offset])
-	return tp_record
+		time_record.append(time_trace[starting_time_idx + i + offset] + time_offset)
+	return tp_record, time_record
+
+def new_record_tp(tp_trace, time_trace, starting_time_idx, duration):
+	# print starting_time_idx
+	# print duration
+	start_time = time_trace[starting_time_idx]
+	tp_record = []
+	time_record = []
+	offset = 0
+	time_offset = 0.0
+	i = 0
+	time_range = 0.0
+	# num_record = int(np.ceil(duration/SEG_DURATION))
+	while  time_range < duration/MS_IN_S:
+		# print time_trace[starting_time_idx + i + offset]
+		tp_record.append(tp_trace[starting_time_idx + i + offset])
+		time_record.append(time_trace[starting_time_idx + i + offset] + time_offset)
+		i += 1
+		if starting_time_idx + i + offset >= len(tp_trace):
+			offset -= len(tp_trace)
+			time_offset += time_trace[-1]
+		time_range = time_trace[starting_time_idx + i + offset] + time_offset - start_time
+
+	return tp_record, time_record
 
 def t_main():
 	np.random.seed(RANDOM_SEED)
@@ -208,10 +235,13 @@ def t_main():
 
 		# need to modify
 		time_duration = server.get_time() - starting_time
-		tp_record = record_tp(player.get_throughput_trace(), starting_time_idx, time_duration) 
+		tp_record, time_record = new_record_tp(player.get_throughput_trace(), player.get_time_trace(), starting_time_idx, time_duration + buffer_length) 
 		# print(starting_time_idx, TRACE_NAME, len(player.get_throughput_trace()), player.get_time_idx(), len(tp_record), np.sum(r_batch))
 		print "Entire reward is:", np.sum(r_batch)
 		log_file.write('\t'.join(str(tp) for tp in tp_record))
+		log_file.write('\n')
+		log_file.write('\t'.join(str(time) for time in time_record))
+		# log_file.write('\n' + str(IF_NEW))
 		log_file.write('\n' + str(starting_time))
 		log_file.write('\n')
 		log_file.close()
@@ -265,10 +295,12 @@ def main():
 		print "seg info is " + str(download_seg_info)
 		download_seg_idx = download_seg_info[0]
 		download_seg_size = download_seg_info[1][bit_rate]
-
 		server_wait_time = 0.0
 		sync = 0
 		missing_count = 0
+		if IF_NEW:
+			if download_seg_idx >= TEST_DURATION:
+				break
 		real_seg_size, download_duration, freezing, time_out, player_state = player.fetch(download_seg_size, download_seg_idx)
 		buffer_length = player.get_buffer_length()
 		server_time = server.update(download_duration)
@@ -284,11 +316,13 @@ def main():
 			# Pay attention here, how time out influence next reward, the smoothness
 			# Bit_rate will recalculated later, this is for reward calculation
 			bit_rate = 0
-			sync = 1
+			if IF_NEW:
+				sync = 1
 		# Disable sync for current situation
 		if sync:
-			print "Should not happen!!!!!"
-			break	# No resync here
+			if not IF_NEW:
+				print "Should not happen!!!!!"
+				break	# No resync here
 			# To sync player, enter start up phase, buffer becomes zero
 			sync_time, missing_count = server.sync_encoding_buffer()
 			player.sync_playing(sync_time)
@@ -329,7 +363,7 @@ def main():
 		mpc_tp_rec = mpc.update_mpc_rec(mpc_tp_rec, real_seg_size/download_duration * KB_IN_MB)
 
 		server.generate_next_delivery()			
-		if sync:
+		if sync and not IF_NEW:
 			# Process sync
 			print "Should not happen!!!!!!"
 			pass
@@ -352,10 +386,16 @@ def main():
 
 	# need to modify
 	time_duration = server.get_time() - starting_time
-	tp_record = record_tp(player.get_throughput_trace(), starting_time_idx, time_duration) 
+	if not IF_NEW:
+		tp_record, time_record = record_tp(player.get_throughput_trace(), player.get_time_trace(), starting_time_idx, time_duration + buffer_length) 
+	else:
+		tp_record, time_record = new_record_tp(player.get_throughput_trace(), player.get_time_trace(), starting_time_idx, time_duration + buffer_length) 
 	# print(starting_time_idx, TRACE_NAME, len(player.get_throughput_trace()), player.get_time_idx(), len(tp_record), np.sum(r_batch))
 	print "Entire reward is:", np.sum(r_batch)
 	log_file.write('\t'.join(str(tp) for tp in tp_record))
+	log_file.write('\n')
+	log_file.write('\t'.join(str(time) for time in time_record))
+	# log_file.write('\n' + str(IF_NEW))
 	log_file.write('\n' + str(starting_time))
 	log_file.write('\n')
 	log_file.close()

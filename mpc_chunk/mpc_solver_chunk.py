@@ -1,4 +1,4 @@
-# import cplex
+	# import cplex
 import numpy as np
 
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
@@ -115,7 +115,7 @@ def mpc_solver_chunk(mpc_input):
 				temp_buffer_to_accu = buffer_to_accu - CHUNK_DURATION * chunk_num
 				if temp_buffer_to_accu == 0.0:
 					state = 1
-				assert playback_time == 0.0
+				# assert playback_time == 0.0
 				buffer_length += CHUNK_DURATION * chunk_num
 
 			else:
