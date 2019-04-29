@@ -170,6 +170,7 @@ def t_main():
 				download_chunk_end_idx = download_chunk_info[2]
 				download_chunk_size = download_chunk_info[3][bit_rate]		# Might be several chunks
 				chunk_number = download_chunk_end_idx - download_chunk_idx + 1
+				assert chunk_number == 1
 				server_wait_time = 0.0
 				sync = 0
 				missing_count = 0
