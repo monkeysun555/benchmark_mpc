@@ -5,6 +5,7 @@ import live_player_seg as live_player
 import live_server_seg as live_server
 import load
 import mpc_solver_seg as mpc
+import math 
 
 IF_NEW = 1
 IF_ALL_TESTING = 1		# IF THIS IS 1, IF_NEW MUST BE 1
@@ -34,11 +35,12 @@ USER_FREEZING_TOL = 3000.0											# Single time freezing time upper bound
 USER_LATENCY_TOL = SERVER_START_UP_TH + USER_FREEZING_TOL			# Accumulate latency upperbound
 
 ACTION_REWARD = 1.0 	
-REBUF_PENALTY = 3.0				# for second
+REBUF_PENALTY = 6.0		# for second
 SMOOTH_PENALTY = 1.0
-LONG_DELAY_PENALTY = 5.0 
-LONG_DELAY_PENALTY_BASE = 1.2	# for second
-MISSING_PENALTY = 3.0			# not included
+LONG_DELAY_PENALTY = 4.0  
+CONST = 6.0
+X_RATIO = 1.0
+MISSING_PENALTY = 6.0  		# not included
 # UNNORMAL_PLAYING_PENALTY = 1.0 * CHUNK_FRAG_RATIO
 # FAST_PLAYING = 1.1			# For 1
 # NORMAL_PLAYING = 1.0			# For 0
@@ -65,9 +67,14 @@ if not IF_ALL_TESTING:
 else:
 	LOG_FILE_DIR = './all_test_results'
 	LOG_FILE = LOG_FILE_DIR + '/MPCSEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
+	ALL_TESTING_DIR = '../../algorithms/all_results/'
+	ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 
 def ReLU(x):
 	return x * (x > 0)
+
+def lat_penalty(x):
+	return 1.0/(1+math.exp(CONST-X_RATIO*x)) - 1.0/(1+math.exp(CONST))
 
 def record_tp(tp_trace, time_trace, starting_time_idx, duration):
 	tp_record = []
@@ -110,6 +117,10 @@ def t_main():
 	np.random.seed(RANDOM_SEED)
 	if not os.path.isdir(LOG_FILE_DIR):
 		os.makedirs(LOG_FILE_DIR)
+	if not os.path.isdir(ALL_TESTING_DIR):
+		os.makedirs(ALL_TESTING_DIR)
+	all_testing_log = open(ALL_TESTING_FILE, 'wb')
+
 	cooked_times, cooked_bws, cooked_names = load.new_loadBandwidth(DATA_DIR)
 
 	for i in range(len(cooked_times)):
@@ -137,6 +148,10 @@ def t_main():
 		starting_time_idx = player.get_time_idx()
 		buffer_length = 0.0
 		r_batch = []
+		f_batch = []
+		a_batch = []
+		c_batch = []
+		l_batch = []
 		last_bit_rate = -1
 
 		for i in range(TEST_DURATION):
@@ -155,7 +170,7 @@ def t_main():
 			download_seg_idx = download_seg_info[0]
 			download_seg_size = download_seg_info[1][bit_rate]
 			# If sync happen, and just break
-			if download_seg_idx > TEST_DURATION:
+			if download_seg_idx >= TEST_DURATION:
 				break
 			server_wait_time = 0.0
 			sync = 0
@@ -194,12 +209,13 @@ def t_main():
 				log_last_bit_rate = log_bit_rate
 			else:
 				log_last_bit_rate = np.log(BITRATE[last_bit_rate] / BITRATE[0])
+			c_batch.append(np.abs(BITRATE[bit_rate] - BITRATE[last_bit_rate]))
 			last_bit_rate = bit_rate
 			# print(log_bit_rate, log_last_bit_rate)
 			reward = ACTION_REWARD * log_bit_rate  \
 					- REBUF_PENALTY * freezing / MS_IN_S \
 					- SMOOTH_PENALTY * np.abs(log_bit_rate - log_last_bit_rate) \
-					- LONG_DELAY_PENALTY*(LONG_DELAY_PENALTY_BASE**(ReLU(latency-TARGET_LATENCY)/ MS_IN_S)-1) \
+					- LONG_DELAY_PENALTY * lat_penalty(latency/ MS_IN_S) \
 					- MISSING_PENALTY * missing_count
 
 			if server.check_segs_empty():
@@ -219,6 +235,10 @@ def t_main():
 			server.generate_next_delivery()			
 			# print(action_reward)
 			r_batch.append(reward)
+			f_batch.append(freezing)
+			a_batch.append(BITRATE[bit_rate])
+			l_batch.append(latency)
+
 			log_file.write(	str(server.get_time()) + '\t' +
 						    str(BITRATE[bit_rate]) + '\t' +
 							str(buffer_length) + '\t' +
@@ -246,6 +266,16 @@ def t_main():
 		log_file.write('\n')
 		log_file.close()
 
+		#write to all testing
+		all_testing_log.write(cooked_name + '\t')
+		all_testing_log.write(str(np.sum(r_batch)) + '\t')
+		all_testing_log.write(str(np.mean(a_batch)) + '\t')
+		all_testing_log.write(str(np.sum(f_batch)) + '\t')
+		all_testing_log.write(str(np.mean(c_batch)) + '\t')
+		all_testing_log.write(str(np.mean(l_batch)) + '\t')
+
+		all_testing_log.write('\n')
+	all_testing_log.close()
 
 def main():
 	np.random.seed(RANDOM_SEED)
