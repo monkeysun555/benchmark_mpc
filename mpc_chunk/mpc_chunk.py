@@ -26,7 +26,7 @@ CHUNK_IN_SEG = SEG_DURATION/CHUNK_DURATION
 CHUNK_SEG_RATIO = CHUNK_DURATION/SEG_DURATION
 
 # Initial buffer length on server side
-SERVER_START_UP_TH = 2000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
+SERVER_START_UP_TH = 3000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
 # how user will start playing video (user buffer)
 USER_START_UP_TH = 2000.0
 # set a target latency, then use fast playing to compensate
@@ -173,6 +173,7 @@ def t_main():
 			bit_rate_seq, opt_reward = mpc.mpc_find_action_chunk([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
 									 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, [], ratio])
 			bit_rate = bit_rate_seq[0]
+			c_batch.append(np.abs(BITRATE[bit_rate] - BITRATE[last_bit_rate]))
 			# print "Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward
 			# bit_rate = upper_actions[i]		# Get optimal actions
 			action_reward = 0.0				# Total reward is for all chunks within on segment
@@ -188,6 +189,7 @@ def t_main():
 				download_chunk_end_idx = download_chunk_info[2]
 				download_chunk_size = download_chunk_info[3][bit_rate]		# Might be several chunks
 				chunk_number = download_chunk_end_idx - download_chunk_idx + 1
+				assert chunk_number == 1
 				server_wait_time = 0.0
 				sync = 0
 				missing_count = 0
@@ -227,7 +229,6 @@ def t_main():
 					log_last_bit_rate = log_bit_rate
 				else:
 					log_last_bit_rate = np.log(BITRATE[last_bit_rate] / BITRATE[0])
-				c_batch.append(np.abs(BITRATE[bit_rate] - BITRATE[last_bit_rate]))
 				last_bit_rate = bit_rate	# Do no move this term. This is for chunk continuous calcualtion
 
 				reward = ACTION_REWARD * log_bit_rate * chunk_number \

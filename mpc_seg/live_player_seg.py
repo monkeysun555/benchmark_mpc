@@ -68,8 +68,8 @@ class Live_Player(object):
 		# Handle RTT 
 		take_action = 1	# In seg mode, always 1
 		if take_action:
-			# rtt = np.random.uniform(RTT_LOW, RTT_HIGH) 	# in ms
-			rtt = RTT_LOW	# For upper bound calculation
+			rtt = np.random.uniform(RTT_LOW, RTT_HIGH) 	# in ms
+			# rtt = RTT_LOW	# For upper bound calculation
 			duration = self.time_trace[self.time_idx] * MS_IN_S - self.last_trace_time	# in ms
 			if duration > rtt:
 				self.last_trace_time += rtt
