@@ -68,7 +68,7 @@ else:
 	LOG_FILE_DIR = './all_test_results'
 	LOG_FILE = LOG_FILE_DIR + '/MPCSEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 	ALL_TESTING_DIR = '../../algorithms/all_results/'
-	ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
+	ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPCs_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 
 def ReLU(x):
 	return x * (x > 0)
