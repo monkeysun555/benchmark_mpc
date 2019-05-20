@@ -7,7 +7,7 @@ import load
 import mpc_solver_seg as mpc
 import math 
 
-IF_NEW = 1
+IF_NEW = 0
 IF_ALL_TESTING = 1		# IF THIS IS 1, IF_NEW MUST BE 1
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
@@ -26,7 +26,7 @@ SEG_DURATION = 1000.0
 # CHUNK_SEG_RATIO = CHUNK_DURATION/SEG_DURATION
 
 # Initial buffer length on server side
-SERVER_START_UP_TH = 2000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
+SERVER_START_UP_TH = 4000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
 # how user will start playing video (user buffer)
 USER_START_UP_TH = 2000.0
 # set a target latency, then use fast playing to compensate
@@ -55,7 +55,7 @@ MPC_STEP = 5
 # bitrate number is 6, no bin
 
 if not IF_NEW:
-	DATA_DIR = '../../bw_traces/'
+	DATA_DIR = '../../bw_traces_test/cooked_test_traces/'
 	TRACE_NAME = '70ms_loss0.5_m5.txt'
 else:
 	DATA_DIR = '../../new_traces/test_sim_traces/'
@@ -65,10 +65,16 @@ if not IF_ALL_TESTING:
 	LOG_FILE_DIR = './test_results'
 	LOG_FILE = LOG_FILE_DIR + '/MPCSEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 else:
-	LOG_FILE_DIR = './all_test_results'
-	LOG_FILE = LOG_FILE_DIR + '/MPCSEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
-	ALL_TESTING_DIR = '../../algorithms/all_results/'
-	ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
+	if IF_NEW:
+		LOG_FILE_DIR = './all_test_results'
+		LOG_FILE = LOG_FILE_DIR + '/MPCSEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
+		ALL_TESTING_DIR = '../../algorithms/all_results/'
+		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
+	else:
+		LOG_FILE_DIR = './all_test_results_old'
+		LOG_FILE = LOG_FILE_DIR + '/MPCSEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
+		ALL_TESTING_DIR = '../../algorithms/all_results_old/'
+		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 
 def ReLU(x):
 	return x * (x > 0)
@@ -121,7 +127,10 @@ def t_main():
 		os.makedirs(ALL_TESTING_DIR)
 	all_testing_log = open(ALL_TESTING_FILE, 'wb')
 
-	cooked_times, cooked_bws, cooked_names = load.new_loadBandwidth(DATA_DIR)
+	if IF_NEW:
+		cooked_times, cooked_bws, cooked_names = load.new_loadBandwidth(DATA_DIR)
+	else:
+		cooked_times, cooked_bws, cooked_names = load.loadBandwidth(DATA_DIR)
 
 	for i in range(len(cooked_times)):
 		cooked_time = cooked_times[i]
@@ -432,7 +441,6 @@ def main():
 
 if __name__ == '__main__':
 	if IF_ALL_TESTING:
-		assert IF_NEW == 1
 		t_main()
 	else:
 		main()
