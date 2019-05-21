@@ -1,5 +1,6 @@
 	# import cplex
 import numpy as np
+import math
 
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 # BITRATE = [300.0, 6000.0]
@@ -24,13 +25,15 @@ USER_FREEZING_TOL = 3000.0							# Single time freezing time upper bound
 USER_LATENCY_TOL = TARGET_LATENCY + 3000.0			# Accumulate latency upperbound
 
 
-DEFAULT_ACTION = 0			# lowest bitrate
 ACTION_REWARD = 1.0 * CHUNK_SEG_RATIO	
-REBUF_PENALTY = 10.0		# for second
+REBUF_PENALTY = 6.0		# for second
 SMOOTH_PENALTY = 1.0
-LONG_DELAY_PENALTY = 1.0 * CHUNK_SEG_RATIO 
-LONG_DELAY_PENALTY_BASE = 1.2	# for second
-MISSING_PENALTY = 2.0			# not included
+LONG_DELAY_PENALTY = 4.0 * CHUNK_SEG_RATIO 
+CONST = 6.0
+X_RATIO = 1.0
+MISSING_PENALTY = 6.0 * CHUNK_SEG_RATIO 		# not included
+SMOOTH_SPEED_PENALTY = 1.0
+
 # UNNORMAL_PLAYING_PENALTY = 1.0 * CHUNK_FRAG_RATIO
 # FAST_PLAYING = 1.1		# For 1
 # NORMAL_PLAYING = 1.0	# For 0
@@ -40,6 +43,9 @@ MPC_STEP = 5
 
 def ReLU(x):
 	return x * (x > 0)
+
+def lat_penalty(x):
+	return 1.0/(1+math.exp(CONST-X_RATIO*x)) - 1.0/(1+math.exp(CONST))
 
 def generate_chunks(ratio):
 	current_seg_size = [[] for i in range(len(BITRATE))]
@@ -159,7 +165,7 @@ def mpc_solver_chunk(mpc_input):
 			current_reward += ACTION_REWARD * log_bit_rate * chunk_num \
 							- REBUF_PENALTY * freezing / MS_IN_S \
 							- SMOOTH_PENALTY * np.abs(log_bit_rate - log_last_bit_rate) \
-							- LONG_DELAY_PENALTY*(LONG_DELAY_PENALTY_BASE**(ReLU(latency-TARGET_LATENCY)/ MS_IN_S)-1) * chunk_num \
+							- LONG_DELAY_PENALTY * lat_penalty(latency/ MS_IN_S) * chunk_num \
 							- MISSING_PENALTY * missing_count
 			
 			downloaded_chunks += chunk_num
