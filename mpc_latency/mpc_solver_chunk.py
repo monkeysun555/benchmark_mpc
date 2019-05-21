@@ -4,6 +4,7 @@ import math
 
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 SPEED = [0.95, 1.0, 1.05]
+# SPEED = [0.95, 1.0]
 # BITRATE = [300.0, 6000.0]
 
 RTT_LOW = 30.0
@@ -40,9 +41,7 @@ SPEED_SMOOTH_LENALTY = 1.0
 # NORMAL_PLAYING = 1.0	# For 0
 # SLOW_PLAYING = 0.9		# For -1
 
-
-
-MPC_STEP = 5
+MPC_STEP = 4
 
 def ReLU(x):
 	return x * (x > 0)
@@ -83,8 +82,9 @@ def mpc_solver_chunk(mpc_input):
 	chunks_info = generate_chunks(ratio)
 	# print "chunk info: ", chunks_info
 	for i in range(len(BITRATE)):
+		# print "Birte is: ", i
 		for j in range(len(SPEED)):
-			# print "Birte is: ", i
+			# print "speed: ", j
 			current_chunks = chunks_info[i]
 			current_speed = j
 			pred_tp = mpc_input[0]
@@ -154,9 +154,10 @@ def mpc_solver_chunk(mpc_input):
 				player_time +=  wait_time
 				server_time +=  wait_time
 				if state:
-					assert buffer_length > wait_time * SPEED[current_speed]
-					buffer_length -= wait_time * SPEED[current_speed]
-					playback_time += wait_time * SPEED[current_speed]
+					# assert buffer_length > wait_time * SPEED[current_speed]
+					playback_time += np.minimum(wait_time * SPEED[current_speed], buffer_length)
+					buffer_length = np.maximum(buffer_length - wait_time * SPEED[current_speed], 0.0)
+					freezing += np.maximum(wait_time * SPEED[current_speed] - buffer_length, 0.0)
 
 				latency = server_time - playback_time
 				# print player_time, playback_time, server_time, freezing, buffer_length, state
@@ -193,37 +194,40 @@ def mpc_solver_chunk(mpc_input):
 			sys_state.append([pred_tp, k+1, player_time, playback_time, server_time, buffer_length, \
 								state, last_bit_rate, last_speed, current_reward, seq, speed_seq, ratio])
 			# print "done state is: ", sys_state
-		k += 1
-		if k == MPC_STEP:
-			# print len(sys_state)
-			return sys_state
-		else:
-			# print "<----------->"
-			# print sys_state
-			# print "<----------->"
-
-			current_len = len(sys_state)
-			# print current_len
-			j = 0
-			while j < current_len:
-				# print sys_state, k, j
-				# print "<?????>"
-				sys_state.extend(mpc_solver_chunk(sys_state[0]))
-				# print "<?------?>"
-				sys_state.pop(0)
-				# print sys_state
-				# print len(sys_state)
-				j += 1
+		
+	k += 1
+	# print k
+	if k == MPC_STEP:
+		# print len(sys_state)
 		return sys_state
+	else:
+		# print "<----------->"
+		# print sys_state
+		# print "<----------->"
+
+		current_len = len(sys_state)
+		# print current_len
+		j = 0
+		while j < current_len:
+			# print sys_state, k, j
+			# print "<?????>"
+			sys_state.extend(mpc_solver_chunk(sys_state[0]))
+			# print "<?------?>"
+			sys_state.pop(0)
+			# print sys_state
+			# print len(sys_state)
+			j += 1
+	return sys_state
 
 def mpc_find_opt_chunk(all_states):
 	opt_reward = float("-inf")
 	opt_action = -1
 	for state in all_states:
-		if state[8] > opt_reward:
+		if state[9] > opt_reward:
 			opt_action = state[10]
 			opt_speed = state[11]
 			opt_reward = state[9]
+	print opt_action, opt_speed
 	return opt_action, opt_speed, opt_reward
 
 def mpc_find_action_chunk(mpc_input):
