@@ -42,8 +42,8 @@ LONG_DELAY_PENALTY = 4.0 * CHUNK_SEG_RATIO
 CONST = 6.0
 X_RATIO = 1.0
 MISSING_PENALTY = 6.0 * CHUNK_SEG_RATIO 		# not included
-SMOOTH_SPEED_PENALTY = 1.0
-
+# SMOOTH_SPEED_PENALTY = 1.0
+SPEED_SMOOTH_LENALTY = 1.0
 # UNNORMAL_PLAYING_PENALTY = 1.0 * CHUNK_FRAG_RATIO
 # FAST_PLAYING = 1.1		# For 1
 # NORMAL_PLAYING = 1.0	# For 0
@@ -70,14 +70,14 @@ if not IF_ALL_TESTING:
 else:
 	if IF_NEW:
 		LOG_FILE_DIR = './all_test_results'
-		LOG_FILE = LOG_FILE_DIR + '/MPCCHUNK_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
+		LOG_FILE = LOG_FILE_DIR + '/MPCl_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 		ALL_TESTING_DIR = '../../algorithms/all_results/'
 		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_l_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 	else:
 		LOG_FILE_DIR = './all_test_results_old'
-		LOG_FILE = LOG_FILE_DIR + '/MPCCHUNK_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
+		LOG_FILE = LOG_FILE_DIR + '/MPCl_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 		ALL_TESTING_DIR = '../../algorithms/all_results_old/'
-		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_l_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
+		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPCl_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 
 def ReLU(x):
 	return x * (x > 0)
@@ -261,7 +261,8 @@ def t_main():
 						- REBUF_PENALTY * freezing / MS_IN_S \
 						- SMOOTH_PENALTY * np.abs(log_bit_rate - log_last_bit_rate) \
 						- LONG_DELAY_PENALTY * lat_penalty(latency/ MS_IN_S) * chunk_number \
-						- MISSING_PENALTY * missing_count
+						- MISSING_PENALTY * missing_count \
+						- SPEED_SMOOTH_LENALTY*(np.abs(SPEED[speed]-SPEED[last_speed]))
 						# - UNNORMAL_PLAYING_PENALTY*(playing_speed-NORMAL_PLAYING)*download_duration/MS_IN_S
 				# print(reward)
 				action_reward += reward

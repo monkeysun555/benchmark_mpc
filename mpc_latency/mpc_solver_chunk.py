@@ -1,5 +1,6 @@
 	# import cplex
 import numpy as np
+import math
 
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 SPEED = [0.95, 1.0, 1.05]
@@ -33,7 +34,7 @@ LONG_DELAY_PENALTY = 4.0 * CHUNK_SEG_RATIO
 CONST = 6.0
 X_RATIO = 1.0
 MISSING_PENALTY = 6.0 * CHUNK_SEG_RATIO 		# not included
-SMOOTH_SPEED_PENALTY = 1.0
+SPEED_SMOOTH_LENALTY = 1.0
 # UNNORMAL_PLAYING_PENALTY = 1.0 * CHUNK_FRAG_RATIO
 # FAST_PLAYING = 1.1		# For 1
 # NORMAL_PLAYING = 1.0	# For 0
@@ -173,7 +174,7 @@ def mpc_solver_chunk(mpc_input):
 								- REBUF_PENALTY * freezing / MS_IN_S \
 								- SMOOTH_PENALTY * np.abs(log_bit_rate - log_last_bit_rate) \
 								- LONG_DELAY_PENALTY * lat_penalty(latency/ MS_IN_S) * chunk_num \
-								- MISSING_PENALTY * missing_count
+								- MISSING_PENALTY * missing_count \
 								- SPEED_SMOOTH_LENALTY*(np.abs(SPEED[current_speed]-SPEED[last_speed]))
 				last_bit_rate = i
 				last_speed = j
