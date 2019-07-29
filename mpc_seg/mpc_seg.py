@@ -8,7 +8,7 @@ import mpc_solver_seg as mpc
 import math 
 
 IF_NEW = 0
-IF_ALL_TESTING = 1		# IF THIS IS 1, IF_NEW MUST BE 1
+IF_ALL_TESTING = 0		# IF THIS IS 1, IF_NEW MUST BE 1
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 # BITRATE = [300.0, 6000.0]
@@ -56,7 +56,7 @@ MPC_STEP = 5
 
 if not IF_NEW:
 	DATA_DIR = '../../bw_traces_test/cooked_test_traces/'
-	TRACE_NAME = '70ms_loss0.5_m5.txt'
+	TRACE_NAME = '85+-29ms_loss0.5_0_2.txt'
 else:
 	DATA_DIR = '../../new_traces/test_sim_traces/'
 	TRACE_NAME = 'norway_car_10'
@@ -297,6 +297,8 @@ def main():
 	else:
 		cooked_time, cooked_bw = load.new_load_single_trace(DATA_DIR + TRACE_NAME)
 	
+	# print(len(cooked_bw), np.mean(cooked_bw[:100]), np.var(cooked_bw[:100]))
+	# return
 	# Trick here. For the initial bandwidth, directly get the first 5 value
 	mpc_tp_rec = [INIT_BW] * MPC_STEP
 	mpc_tp_pred = []
@@ -380,7 +382,7 @@ def main():
 		reward = ACTION_REWARD * log_bit_rate  \
 				- REBUF_PENALTY * freezing / MS_IN_S \
 				- SMOOTH_PENALTY * np.abs(log_bit_rate - log_last_bit_rate) \
-				- LONG_DELAY_PENALTY*(LONG_DELAY_PENALTY_BASE**(ReLU(latency-TARGET_LATENCY)/ MS_IN_S)-1) \
+				- LONG_DELAY_PENALTY * lat_penalty(latency/ MS_IN_S) \
 				- MISSING_PENALTY * missing_count
 				# - UNNORMAL_PLAYING_PENALTY*(playing_speed-NORMAL_PLAYING)*download_duration/MS_IN_S
 		# print(reward)
