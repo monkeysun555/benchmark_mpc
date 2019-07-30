@@ -57,10 +57,10 @@ MPC_STEP = 5
 
 DATA_DIR = '../../bw_traces/'
 LOG_FILE_DIR = './error/'
-LOG_FILE = LOG_FILE_DIR + '/' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
+LOG_FILE = LOG_FILE_DIR + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 
 ERROR_TESTING_LEN = 8
-MU_LIST = [-0.5, -0.3, -0.1, 0.1, 0.3, 0.5]
+MU_LIST = [-0.5, -0.3, -0.1, 0.1, 0.3, 0.5, 0]
 SIGMA = 0.01
 
 def ReLU(x):
@@ -148,7 +148,10 @@ def mpc_simulation(f_idx):
 				server.init_encoding()
 				init = 0
 
-			mpc_tp_pred = mpc.predict_mpc_tp_noisy(mpc_tp_rec, mu, SIGMA)
+			if mu == 0:
+				mpc_tp_pred = mpc.predict_mpc_tp(mpc_tp_rec)
+			else:
+				mpc_tp_pred = mpc.predict_mpc_tp_noisy(mpc_tp_rec, mu, SIGMA)
 			bit_rate_seq, opt_reward = mpc.mpc_find_action_chunk([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
 									 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, [], ratio])
 			bit_rate = bit_rate_seq[0]
@@ -264,6 +267,7 @@ def mpc_simulation(f_idx):
 						break
 
 		print(np.sum(r_batch))
+		log_file.write(mu)
 		log_file.write('\t'+ str(np.sum(r_batch)))
 		log_file.write('\n')
 	log_file.close()
