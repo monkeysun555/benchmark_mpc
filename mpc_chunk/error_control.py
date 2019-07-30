@@ -59,7 +59,7 @@ DATA_DIR = '../../bw_traces/'
 LOG_FILE_DIR = './error/'
 LOG_FILE = LOG_FILE_DIR + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 
-ERROR_TESTING_LEN = 1
+ERROR_TESTING_LEN = 8
 MU_LIST = [0, -0.5, -0.3, -0.1, 0.1, 0.3, 0.5]
 SIGMA = 0.01
 
