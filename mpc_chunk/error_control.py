@@ -59,8 +59,8 @@ DATA_DIR = '../../bw_traces/'
 LOG_FILE_DIR = './error/'
 LOG_FILE = LOG_FILE_DIR + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 
-ERROR_TESTING_LEN = 8
-MU_LIST = [-0.5, -0.3, -0.1, 0.1, 0.3, 0.5, 0]
+ERROR_TESTING_LEN = 1
+MU_LIST = [0, -0.5, -0.3, -0.1, 0.1, 0.3, 0.5]
 SIGMA = 0.01
 
 def ReLU(x):
@@ -267,7 +267,7 @@ def mpc_simulation(f_idx):
 						break
 
 		print(np.sum(r_batch))
-		log_file.write(mu)
+		log_file.write(str(mu))
 		log_file.write('\t'+ str(np.sum(r_batch)))
 		log_file.write('\n')
 	log_file.close()
