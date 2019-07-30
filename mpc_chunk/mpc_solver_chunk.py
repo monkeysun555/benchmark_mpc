@@ -239,5 +239,5 @@ def predict_mpc_tp_noisy(updated_pred_tp, mu, sigma):
 	combined_tp = updated_pred_tp[:]
 	combined_tp.extend(np.zeros(MPC_STEP))
 	for i in range(MPC_STEP):
-		combined_tp[MPC_STEP + i] = (1 + np.random.normal(mu, sigma)) * harmonic_prediction(combined_tp[i:i+MPC_STEP])
-	return combined_tp[-MPC_STEP:]
+		combined_tp[MPC_STEP + i] = harmonic_prediction(combined_tp[i:i+MPC_STEP])
+	return [(1 + np.random.normal(mu, sigma)) * x for x in combined_tp[-MPC_STEP:]]
