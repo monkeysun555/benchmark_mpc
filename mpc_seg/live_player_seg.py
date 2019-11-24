@@ -108,10 +108,10 @@ class Live_Player(object):
 					if temp_freezing > self.latency_tol:
 						# should not happen
 						time_out = 1
-						self.last_trace_time += self.buffer + self.freezing_tol
-						downloading_fraction += self.buffer + self.freezing_tol
+						self.last_trace_time += self.buffer/playing_speed + self.freezing_tol
+						downloading_fraction += self.buffer/playing_speed + self.freezing_tol
 						self.playing_time += self.buffer
-						seg_sent += (self.freezing_tol + self.buffer) * throughput * PACKET_PAYLOAD_PORTION	# in Kbits	
+						seg_sent += (self.freezing_tol + self.buffer/playing_speed) * throughput * PACKET_PAYLOAD_PORTION	# in Kbits	
 						self.state = 0
 						self.buffer = 0.0
 						assert seg_sent < seg_size
@@ -185,14 +185,14 @@ class Live_Player(object):
 				if temp_freezing > self.freezing_tol:
 					# should not happen
 					time_out = 1
-					self.last_trace_time += self.freezing_tol + self.buffer
-					downloading_fraction += self.freezing_tol + self.buffer
+					self.last_trace_time += self.freezing_tol + self.buffer/playing_speed
+					downloading_fraction += self.freezing_tol + self.buffer/playing_speed
 					freezing_fraction = self.freezing_tol
 					self.playing_time += self.buffer
 					self.buffer = 0.0
 					# exceed TOL, enter startup, freezing time equals TOL
 					self.state = 0
-					seg_sent += (self.freezing_tol + self.buffer) * throughput * PACKET_PAYLOAD_PORTION	# in Kbits
+					seg_sent += (self.freezing_tol + self.buffer/playing_speed) * throughput * PACKET_PAYLOAD_PORTION	# in Kbits
 					assert seg_sent < seg_size
 					return seg_sent, downloading_fraction, freezing_fraction, time_out, start_state
 
