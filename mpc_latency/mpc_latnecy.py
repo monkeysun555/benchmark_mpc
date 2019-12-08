@@ -7,7 +7,7 @@ import load
 import mpc_solver_chunk as mpc
 import math
 
-IF_NEW = 1
+IF_NEW = 0
 IF_ALL_TESTING = 1
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
@@ -27,7 +27,7 @@ CHUNK_IN_SEG = SEG_DURATION/CHUNK_DURATION
 CHUNK_SEG_RATIO = CHUNK_DURATION/SEG_DURATION
 
 # Initial buffer length on server side
-SERVER_START_UP_TH = 2000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
+SERVER_START_UP_TH = 4000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
 # how user will start playing video (user buffer)
 USER_START_UP_TH = 2000.0
 # set a target latency, then use fast playing to compensate
@@ -38,18 +38,18 @@ USER_LATENCY_TOL = SERVER_START_UP_TH + USER_FREEZING_TOL			# Accumulate latency
 ACTION_REWARD = 1.0 * CHUNK_SEG_RATIO	
 REBUF_PENALTY = 6.0		# for second
 SMOOTH_PENALTY = 1.0
+MISSING_PENALTY = 6.0 * CHUNK_SEG_RATIO 		# not included
 LONG_DELAY_PENALTY = 4.0 * CHUNK_SEG_RATIO 
 CONST = 6.0
 X_RATIO = 1.0
-MISSING_PENALTY = 6.0 * CHUNK_SEG_RATIO 		# not included
 # SMOOTH_SPEED_PENALTY = 1.0
-SPEED_SMOOTH_LENALTY = 1.0
+SPEED_SMOOTH_LENALTY = 5.0				# previous is 1.0, changet to 5.0 after ICNP/INFOCOM
 # UNNORMAL_PLAYING_PENALTY = 1.0 * CHUNK_FRAG_RATIO
 # FAST_PLAYING = 1.1		# For 1
 # NORMAL_PLAYING = 1.0	# For 0
 # SLOW_PLAYING = 0.9		# For -1
 
-TEST_DURATION = 100				# Number of testing <===================== Change length here
+TEST_DURATION = 200				# Number of testing <===================== Change length here
 RATIO_LOW_2 = 2.0				# This is the lowest ratio between first chunk and the sum of all others
 RATIO_HIGH_2 = 10.0			# This is the highest ratio between first chunk and the sum of all others
 RATIO_LOW_5 = 0.75				# This is the lowest ratio between first chunk and the sum of all others
@@ -59,7 +59,7 @@ MPC_STEP = 4
 
 if not IF_NEW:
 	DATA_DIR = '../../bw_traces_test/cooked_test_traces/'
-	TRACE_NAME = '70ms_loss0.5_m5.txt'
+	TRACE_NAME = '30+-10ms_loss1_1_2.txt'
 else:
 	DATA_DIR = '../../new_traces/test_sim_traces/'
 	TRACE_NAME = 'norway_car_1'
@@ -322,7 +322,7 @@ def t_main():
 		all_testing_log.write('\n')
 	all_testing_log.close()
 
-def main():
+def main():  # To be modified
 	np.random.seed(RANDOM_SEED)
 
 	if not os.path.exists(LOG_FILE_DIR):
@@ -369,8 +369,11 @@ def main():
 			init = 0
 
 		mpc_tp_pred = mpc.predict_mpc_tp(mpc_tp_rec)
-		bit_rate_seq, opt_reward = mpc.mpc_find_action_chunk([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
-								 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, [], ratio])
+		bit_rate_seq, speed_seq, opt_reward = mpc.mpc_find_action_chunk([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
+									 player.get_buffer_length(), player.get_state(), last_bit_rate, last_speed, 0.0, [], [], ratio])
+
+		# bit_rate_seq, opt_reward = mpc.mpc_find_action_chunk([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
+		# 						 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, [], ratio])
 		bit_rate = bit_rate_seq[0]
 		print "Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward
 		# bit_rate = upper_actions[i]		# Get optimal actions
