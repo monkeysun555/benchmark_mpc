@@ -1,15 +1,18 @@
 import numpy as np
 
 LQR_DEBUG = 0
+iLQR_SHOW = 0
 RTT_LOW = 0.02
 SEG_DURATION = 1.0
 DEF_N_STEP = 5
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 MS_IN_S = 1000.0
 KB_IN_MB = 1000.0
+MIN_RATE = 10**-8
+MAX_RATE = BITRATE[-1]/KB_IN_MB
 
 class iLQR_solver(object):
-    # Assume c(x, u) = -w1*(log(u/r0) + w2*(log(u/r0) - log(r/r0))**2 + w3*(0.5*e**(-2*(b-u/w-rtt+1)))) + 1000*e**(-10*(u+0.4))
+    # Assume c(x, u) = -w1*(log(u/r0) + w2*(log(u/r0) - log(r/r0))**2 + w3*e**(-2*(b-u/w-rtt+0.2))) + 1000*e**(-10*(u+0.4))
     # Assume f(x, u) = z1 * (z2*Bu + (1-z2)*(b-u/bw-rtt+delta)) + (1-z1)
     # z1 = 0/1 at 0 :  np.e**f1/(np.e**f1+1),  f1 = 20*(b-u/bw-rtt)
     # z2 = 0/1 at Bu:  np.e**f3/(np.e**f3+1),  f3 = 20*(b-u/bw-rtt+ delta - Bu)
@@ -17,8 +20,9 @@ class iLQR_solver(object):
     def __init__(self):
         self.w1 = 1
         self.w2 = 1
-        self.w3 = 6   
-        self.barrier_1 = 1000
+        self.w3 = 1 
+        self.barrier_1 = 1
+        self.barrier_2 = 1
         self.delta = 1.0  # 1s
         self.n_step = None
         self.predicted_bw = None
@@ -30,22 +34,26 @@ class iLQR_solver(object):
         self.r0 = None
 
     def set_x0(self, buffer_len, rate=BITRATE[0]):
-        self.b0 = buffer_len/MS_IN_S
-        self.r0 = rate/KB_IN_MB 
+        self.b0 = np.round(buffer_len/MS_IN_S, 2)
+        self.r0 = np.round(rate/KB_IN_MB, 2)
+        if iLQR_SHOW:
+            print("Initial X0 is: ", self.b0, self.r0)
 
     def set_predicted_bw_rtt(self, predicted_bw):
         assert len(predicted_bw) == self.n_step
-        self.predicted_bw = [bw/KB_IN_MB for bw in predicted_bw]
+        self.predicted_bw = [np.round(bw/KB_IN_MB, 2) for bw in predicted_bw]
         self.predicted_rtt = [RTT_LOW] * self.n_step
-        print("iLQR p_bw: ", self.predicted_bw)
-        print("iLQR p_rtt: ", self.predicted_rtt)
+        if iLQR_SHOW:
+            print("iLQR p_bw: ", self.predicted_bw)
+            print("iLQR p_rtt: ", self.predicted_rtt)
 
     def set_step(self, step=DEF_N_STEP):
         self.n_step = step
 
     def set_bu(self, bu):
         self.Bu = bu/MS_IN_S + 1
-        print("iLQR buffer upperbound is: ", self.Bu)
+        if iLQR_SHOW:
+            print("iLQR buffer upperbound is: ", self.Bu)
 
     def set_initial_rates(self, i_rate):
         self.rates = [i_rate] * self.n_step
@@ -61,10 +69,11 @@ class iLQR_solver(object):
             bw = self.predicted_bw[r_idx]
             new_b = self.sim_fetch(x[0], u, rtt, bw)
             new_x = [new_b, u]
-            if r_idx < len(self.rates)-1:
-                self.states.append(new_x)
-        print("iLQR rates are: ", self.rates)
-        print("iLQR states are: ", self.states)
+            # if r_idx < len(self.rates)-1:
+            self.states.append(new_x)
+        if iLQR_SHOW:
+            print("iLQR rates are: ", self.rates)
+            print("iLQR states are: ", self.states)
 
     def update_matrix(self, step_i):
         curr_state = self.states[step_i]
@@ -77,8 +86,9 @@ class iLQR_solver(object):
         f_1 = 20*(b-u/bw-rtt)
         f_2 = b-u/bw-rtt+self.delta
         f_3 = 20*(b-u/bw-rtt+self.delta-self.Bu)
-        ce_power = -2*(b-u/bw-rtt+1.5)
-
+        ce_power = -20*(b-u/bw-rtt+0.05)
+        ce_power_1 = -50*(u-0.1)
+        ce_power_2 = 50*(u-6.5)
         # Without z2 for buffer upper bound
         # self.ft = [[(np.e**f_1)/(np.e**f_1+1) + (20*(np.e**f_1)*(b-1))/((np.e**f_1+1)**2), 0, -(np.e**f_1)/(bw*(np.e**f_1+1)) + (20*(u+bw)*np.e**f_1)/((np.e**f_1+1)**2)],
         #          [0, 0, 1]]
@@ -95,16 +105,18 @@ class iLQR_solver(object):
             print("bu: ", self.Bu)
             print("f3 is: ", f_3)
             input()
+
+        # Shape 2*3
         self.ft = np.array([[(20*np.e**f_1/((np.e**f_1+1)**2))*((self.Bu*np.e**f_3+f_2)/(np.e**f_3+1)) + ((self.Bu*20*np.e**f_3+np.e**f_3+1-20*np.e**f_3*f_2)/(np.e**f_3+1)**2)*np.e**f_1/(np.e**f_1+1)-20*np.e**f_1/(np.e**f_1+1)**2,
                     0, -20*np.e**f_1*(self.Bu*np.e**f_3+f_2)/(bw*(np.e**f_1+1)**2*(np.e**f_3+1)) + (np.e**f_1/(np.e**f_1+1))*(-20*self.Bu*np.e**f_3-np.e**f_3-1+20*np.e**f_3*f_2)/(bw*(np.e**f_3+1)**2) + (20*np.e**f_1)/(bw*(np.e**f_1+1)**2)],
                    [0, 0, 1]])
         # Shape 3*1
-        self.ct = np.array([[-2*self.w3*np.e**ce_power, self.w2*2*np.log(r/u)/r, -1/u + 2*np.log(u/r)/u+(2*self.w3/bw)*np.e**ce_power - 20*self.barrier_1.0*np.e**(-20*(u+0.2))]]).T
+        self.ct = np.array([[-20*self.w3*np.e**ce_power, self.w2*2*np.log(r/u)/r, self.w1*-1/u + self.w2*2*np.log(u/r)/u + 20*self.w3/bw*np.e**ce_power - 50*self.barrier_1*np.e**ce_power_1 + 50*self.barrier_2*np.e**ce_power_2]]).T
 
         # Shape 3*3
-        self.CT = np.array([[4*self.w3*np.e**ce_power, 0, (-4*self.w3/bw)*np.e**ce_power],
+        self.CT = np.array([[400*self.w3*np.e**ce_power, 0, -400*self.w3/bw*np.e**ce_power],
                    [0, self.w2*2/(r**2)*(1-np.log(r/u)), -2*self.w2/(u*r)],
-                   [(-4*self.w3*(np.e**ce_power))/bw, -2/(u*r), u**-2+(2/(u**2))*(1-np.log(u/r)) + self.w3*4*np.e**ce_power/bw**2 + 400.0*self.barrier_1*np.e**(-20*(u+0.2))]]).T
+                   [-400*self.w3/bw*np.e**ce_power, self.w2*-2/(u*r), self.w1/u**2 + self.w2*2/u**2*(1-np.log(u/r)) + self.w3*400*np.e**ce_power/bw**2 + 2500.0*self.barrier_1*np.e**ce_power_1 + 2500*self.barrier_2*np.e**ce_power_2]]).T
         if LQR_DEBUG:
             print("Update matrix in step: ", step_i)
             print("CT matrix: ", self.CT)
@@ -180,7 +192,7 @@ class iLQR_solver(object):
                 if LQR_DEBUG:
                     print("New action: ", new_u)
                     input()
-                self.rates[step_i] = new_u[0][0]
+                self.rates[step_i] = np.round(new_u[0][0], 2)
                 new_x = new_xt_list[step_i]             # Get new state
                 rtt = self.predicted_rtt[step_i]
                 bw = self.predicted_bw[step_i]
@@ -188,18 +200,31 @@ class iLQR_solver(object):
                 new_next_b = self.sim_fetch(new_x[0][0], new_u[0][0], rtt, bw)               # Simulate to get new next state
                 if step_i < self.n_step - 1:
                     new_xt_list[step_i+1] = np.array([[new_next_b], [new_u[0][0]]])
-                    self.states[step_i+1] = [new_next_b, new_u[0][0]]
+                    self.states[step_i+1] = [np.round(new_next_b, 2), self.rates[step_i]]
                     if LQR_DEBUG:
                         print("Input: ", new_x[0][0], new_u[0][0])
                         print("Output: ", new_next_b)
                         print("States: ", self.states)
+                else:
+                    self.states[step_i+1] = [np.round(new_next_b, 2), self.rates[step_i]]
+
+            # ## Newly added: clip self.rates
+            # self.rates = np.array(self.rates)
+            # np.clip(self.rates, a_min = MIN_RATE, a_max=MAX_RATE)
+            # self.rates.tolist()
+            # ## Might influence system evolution
+
             if LQR_DEBUG:
                 print("New states: ", self.states)
                 print("New actions: ", self.rates)
             
             # Check convergence
-            print("Iteration ", ite_i, ", state is: ", [x[0] for x in self.states])
-            print("Iteration ", ite_i, ", action is: ", self.rates)
+            if iLQR_SHOW:
+                print("Iteration ", ite_i, ", previous rate: ", self.states[0][1])
+                print("Iteration ", ite_i, ", state is: ", [x[0] for x in self.states])
+                print("Iteration ", ite_i, ", pre bw is: ", self.predicted_bw)
+                print("Iteration ", ite_i, ", action is: ", self.rates)
+                print("<===============================================>")
 
         r_idx = self.translate_to_rate_idx()
         return r_idx
@@ -211,7 +236,7 @@ class iLQR_solver(object):
         if LQR_DEBUG:
             print("Distance is: ", distance)
             print("First action is: ", first_action)
-        input()
+        # input()
         return rate_idx
 
     def sim_fetch(self, buffer_len, seg_rate, rtt, bw, state = 1, playing_speed = 1.0):

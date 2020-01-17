@@ -8,7 +8,7 @@ import mpc_solver_seg as mpc
 import math 
 import iLQR
 IF_NEW = 0
-IF_ALL_TESTING = 1		# IF THIS IS 1, IF_NEW MUST BE 1
+IF_ALL_TESTING = 0		# IF THIS IS 1, IF_NEW MUST BE 1
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 # BITRATE = [300.0, 6000.0]
@@ -26,7 +26,7 @@ SEG_DURATION = 1000.0
 # CHUNK_SEG_RATIO = CHUNK_DURATION/SEG_DURATION
 
 # Initial buffer length on server side
-SERVER_START_UP_TH = 3000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
+SERVER_START_UP_TH = 2000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
 # how user will start playing video (user buffer)
 USER_START_UP_TH = 2000.0
 # set a target latency, then use fast playing to compensate
@@ -56,25 +56,25 @@ MPC_STEP = 5
 
 if not IF_NEW:
 	DATA_DIR = '../../bw_traces_test/cooked_test_traces/'
-	TRACE_NAME = '85+-29ms_loss0.5_0_2.txt'
+	TRACE_NAME = '100+-34ms_loss0.5_0_2.txt'
 else:
 	DATA_DIR = '../../new_traces/test_sim_traces/'
 	TRACE_NAME = 'norway_car_10'
 
 if not IF_ALL_TESTING:
 	LOG_FILE_DIR = './test_results'
-	LOG_FILE = LOG_FILE_DIR + '/MPCSEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
+	LOG_FILE = LOG_FILE_DIR + '/MPC_iLQR_SEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 else:
 	if IF_NEW:
 		LOG_FILE_DIR = './all_test_results'
-		LOG_FILE = LOG_FILE_DIR + '/MPCSEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
-		ALL_TESTING_DIR = '../../algorithms/all_results/'
-		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
+		LOG_FILE = LOG_FILE_DIR + '/MPC_iLQR_SEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
+		ALL_TESTING_DIR = '../../benchmark_compare/all_results/'
+		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_iLQR_SEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 	else:
 		LOG_FILE_DIR = './all_test_results_old'
-		LOG_FILE = LOG_FILE_DIR + '/MPCSEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
-		ALL_TESTING_DIR = '../../algorithms/all_results_old/'
-		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
+		LOG_FILE = LOG_FILE_DIR + '/MPC_iLQR_SEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
+		ALL_TESTING_DIR = '../../benchmark_compare/all_results_old/'
+		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_iLQR_SEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 
 def ReLU(x):
 	return x * (x > 0)
@@ -172,6 +172,7 @@ def t_main():
 			# Method 1: MPC, search
 			# bit_rate_seq, opt_reward = mpc.mpc_find_action_seg([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
 			# 						 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, []])
+			# bit_rate = bit_rate_seq[0]
 			# Method 2: iLQR 
 			if player.get_buffer_length() == 0:
 				bit_rate = 0
@@ -183,7 +184,7 @@ def t_main():
 					iLQR_solver.set_x0(player.get_buffer_length())
 				else:
 					iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
-				iLQR_solver.generate_initial_x(mpc_tp_pred[0]/KB_IN_MB)
+				iLQR_solver.generate_initial_x(min(mpc_tp_pred)/KB_IN_MB)
 				bit_rate = iLQR_solver.iterate_LQR()
 			# print "Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward
 			# last_bit_rate = bit_rate
@@ -313,6 +314,8 @@ def main():
 	else:
 		cooked_time, cooked_bw = load.new_load_single_trace(DATA_DIR + TRACE_NAME)
 	
+	iLQR_solver = iLQR.iLQR_solver()
+	iLQR_solver.set_step()
 	# print(len(cooked_bw), np.mean(cooked_bw[:100]), np.var(cooked_bw[:100]))
 	# return
 	# Trick here. For the initial bandwidth, directly get the first 5 value
@@ -340,9 +343,25 @@ def main():
 	for i in range(TEST_DURATION):
 		print("Current index: ", i)
 		mpc_tp_pred = mpc.predict_mpc_tp(mpc_tp_rec)
+		# Method 1:
 		bit_rate_seq, opt_reward = mpc.mpc_find_action_seg([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
 								 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, []])
 		bit_rate = bit_rate_seq[0]
+
+		# Method 2:
+		if player.get_buffer_length() == 0:
+			bit_rate = 0
+		else:
+			latency = server.get_time() - player.get_playing_time()
+			iLQR_solver.set_bu(latency)
+			iLQR_solver.set_predicted_bw_rtt(mpc_tp_pred)
+			if last_bit_rate == -1:
+				iLQR_solver.set_x0(player.get_buffer_length())
+			else:
+				iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
+			iLQR_solver.generate_initial_x(min(mpc_tp_pred)/KB_IN_MB)
+			bit_rate = iLQR_solver.iterate_LQR()
+
 		print("Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward)
 		# last_bit_rate = bit_rate
 		# bit_rate = upper_actions[i]		# Get optimal actions
