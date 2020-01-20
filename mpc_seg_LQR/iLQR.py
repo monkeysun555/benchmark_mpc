@@ -107,6 +107,7 @@ class iLQR_solver(object):
             input()
 
         # Shape 2*3
+        # (b, r) = f(b', r', u) So self.ft is 2*3
         self.ft = np.array([[(20*np.e**f_1/((np.e**f_1+1)**2))*((self.Bu*np.e**f_3+f_2)/(np.e**f_3+1)) + ((self.Bu*20*np.e**f_3+np.e**f_3+1-20*np.e**f_3*f_2)/(np.e**f_3+1)**2)*np.e**f_1/(np.e**f_1+1)-20*np.e**f_1/(np.e**f_1+1)**2,
                     0, -20*np.e**f_1*(self.Bu*np.e**f_3+f_2)/(bw*(np.e**f_1+1)**2*(np.e**f_3+1)) + (np.e**f_1/(np.e**f_1+1))*(-20*self.Bu*np.e**f_3-np.e**f_3-1+20*np.e**f_3*f_2)/(bw*(np.e**f_3+1)**2) + (20*np.e**f_1)/(bw*(np.e**f_1+1)**2)],
                    [0, 0, 1]])
@@ -241,6 +242,7 @@ class iLQR_solver(object):
 
     def sim_fetch(self, buffer_len, seg_rate, rtt, bw, state = 1, playing_speed = 1.0):
         seg_size = seg_rate * SEG_DURATION
+        # print('Seg size is: ', seg_size)
         # Chunk downloading
         freezing = 0.0
         wait_time = 0.0
