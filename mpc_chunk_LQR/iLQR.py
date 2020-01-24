@@ -1,7 +1,7 @@
 import numpy as np
 
 LQR_DEBUG = 0
-iLQR_SHOW = 1
+iLQR_SHOW = 0
 RTT_LOW = 0.02
 SEG_DURATION = 1.0
 CHUNK_DURATION = 0.2
@@ -60,7 +60,7 @@ class iLQR_solver(object):
     def set_initial_rates_trace(self, predict_trace):
         self.rates = [0.0] * self.n_step
         for i in range(self.n_step):
-            self.rates[i] = predict_trace[int(i/CHUNK_IN_SEG)]
+            self.rates[i] = predict_trace[int(i/CHUNK_IN_SEG)]/KB_IN_MB
         self.states = []
         self.states.append([self.b0, self.r0])
 

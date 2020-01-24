@@ -376,7 +376,7 @@ def main():
 			iLQR_solver.set_predicted_bw_rtt(mpc_tp_pred)
 			if COMPARE_ILQR_VERSION == 1:
 				ilqr_rates = []
-				for iLQR_v in range(3):
+				for iLQR_v in range(4):
 					if last_bit_rate == -1:
 						iLQR_solver.set_x0(player.get_buffer_length())
 					else:
@@ -384,13 +384,15 @@ def main():
 						if iLQR_v == 0:
 							iLQR_solver.generate_initial_x(min(mpc_tp_pred))
 						elif iLQR_v == 1:
-							iLQR_solver.generate_initial_x(mpc_tp_pred)
+							iLQR_solver.generate_initial_x(mpc_tp_pred[0])
 						elif iLQR_v == 2:
 							iLQR_solver.generate_initial_x(np.mean(mpc_tp_pred))
 						elif iLQR_v == 3:
-							iLQR_solver.generate_initial_x_trace(min(mpc_tp_pred))
+							iLQR_solver.generate_initial_x_trace(mpc_tp_pred)
 						bit_rate = iLQR_solver.iterate_LQR()
 						ilqr_rates.append(iLQR_solver.get_rates())
+				for ilqr_res in ilqr_rates:
+					print(ilqr_res)
 			else:
 				if last_bit_rate == -1:
 					iLQR_solver.set_x0(player.get_buffer_length())
