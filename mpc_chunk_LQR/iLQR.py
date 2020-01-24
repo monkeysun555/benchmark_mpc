@@ -1,7 +1,7 @@
 import numpy as np
 
 LQR_DEBUG = 0
-iLQR_SHOW = 0
+iLQR_SHOW = 1
 RTT_LOW = 0.02
 SEG_DURATION = 1.0
 CHUNK_DURATION = 0.2
@@ -19,13 +19,14 @@ class iLQR_solver(object):
     # z1 = 0/1 at 0 :  np.e**f1/(np.e**f1+1),  f1 = 100*(b-u/bw-rtt)
     # z2 = 0/1 at Bu:  np.e**f3/(np.e**f3+1),  f3 = 100*(b-u/bw-rtt+ delta - Bu)
     # And f2 = b - u/bw - rtt + delta
+
     def __init__(self):
         self.w1 = 1
         self.w2 = 1
         self.w3 = 1 
         self.barrier_1 = 1
         self.barrier_2 = 1
-        self.delta = 0.2  # 1s
+        self.delta = 0.2  # 0.2s
         self.n_step = None
         self.predicted_bw = None
         # self.predicted_rtt = predicted_rtt
@@ -44,7 +45,10 @@ class iLQR_solver(object):
     def set_predicted_bw_rtt(self, predicted_bw):
         assert len(predicted_bw) == self.n_step / CHUNK_IN_SEG
         self.predicted_bw = [np.round(predicted_bw[int(index/CHUNK_IN_SEG)]/KB_IN_MB, 2) for index in range(self.n_step)]
-        self.predicted_rtt = [RTT_LOW] * self.n_step
+        self.predicted_rtt = [0.0] * self.n_step
+        for i in range(self.n_step):
+            if i%CHUNK_IN_SEG == 0:
+                self.predicted_rtt[i] = RTT_LOW 
         if iLQR_SHOW:
             print("iLQR p_bw: ", self.predicted_bw)
             print("iLQR p_rtt: ", self.predicted_rtt)
@@ -269,12 +273,16 @@ class iLQR_solver(object):
     def translate_to_rate_idx(self):
         seg_rate = [np.mean(self.rates[i:i+5]) for i in range(0, len(self.rates), int(CHUNK_IN_SEG))]
         first_action = seg_rate[0]
-        distance = [np.abs(first_action-br/KB_IN_MB) for br in BITRATE]
-        rate_idx = distance.index(min(distance))
-        if LQR_DEBUG:
-            print("Distance is: ", distance)
-            print("First action is: ", first_action)
-        # input()
+        # distance = [np.abs(first_action-br/KB_IN_MB) for br in BITRATE]
+        # rate_idx = distance.index(min(distance))
+        rate_idx = 0
+        for j in reversed(range(len(BITRATE))):
+            if BITRATE[j]/KB_IN_MB <= first_action:
+                rate_idx = j
+                break
+        print("Rate is: ", first_action)
+        print("Rate index: ", rate_idx)
+        input()
         return rate_idx
 
     def sim_fetch(self, buffer_len, seg_rate, rtt, bw, state = 1, playing_speed = 1.0):
