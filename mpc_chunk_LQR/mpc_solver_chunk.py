@@ -39,7 +39,7 @@ SMOOTH_SPEED_PENALTY = 1.0
 # NORMAL_PLAYING = 1.0	# For 0
 # SLOW_PLAYING = 0.9		# For -1
 
-MPC_STEP = 5
+MPC_STEP = 10
 
 def ReLU(x):
 	return x * (x > 0)

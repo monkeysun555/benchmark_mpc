@@ -55,7 +55,7 @@ RATIO_LOW_2 = 2.0				# This is the lowest ratio between first chunk and the sum 
 RATIO_HIGH_2 = 10.0			# This is the highest ratio between first chunk and the sum of all others
 RATIO_LOW_5 = 0.75				# This is the lowest ratio between first chunk and the sum of all others
 RATIO_HIGH_5 = 1.0			# This is the highest ratio between first chunk and the sum of all others
-MPC_STEP = 5
+MPC_STEP = 10
 # bitrate number is 6, no bin
 BUFFER_AVE_LEN = 10
 

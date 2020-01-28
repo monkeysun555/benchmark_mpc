@@ -6,7 +6,7 @@ RTT_LOW = 0.02
 SEG_DURATION = 1.0
 CHUNK_DURATION = 0.2
 CHUNK_IN_SEG = SEG_DURATION/CHUNK_DURATION
-DEF_N_STEP = 5
+DEF_N_STEP = 10
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 MS_IN_S = 1000.0
 KB_IN_MB = 1000.0
@@ -25,7 +25,7 @@ class iLQR_solver(object):
         self.w2 = 2
         self.w3 = 1 
         self.w4 = 1
-        self.w5 = 1
+        self.w5 = 0.05
         self.barrier_1 = 1
         self.barrier_2 = 1
         self.delta = 0.2  # 0.2s
