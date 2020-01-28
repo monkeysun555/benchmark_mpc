@@ -291,17 +291,20 @@ class iLQR_solver(object):
     def translate_to_rate_idx(self):
         seg_rate = [np.mean(self.rates[i:i+5]) for i in range(0, len(self.rates), int(CHUNK_IN_SEG))]
         first_action = seg_rate[0]
-        # distance = [np.abs(first_action-br/KB_IN_MB) for br in BITRATE]
-        # rate_idx = distance.index(min(distance))
-        rate_idx = 0
-        for j in reversed(range(len(BITRATE))):
-            if BITRATE[j]/KB_IN_MB <= first_action:
-                rate_idx = j
-                break
-        # if iLQR_SHOW:
-            # print("Rate is: ", first_action)
-            # print("Rate index: ", rate_idx)
-            # input()
+        # Distance method
+        distance = [np.abs(first_action-br/KB_IN_MB) for br in BITRATE]
+        rate_idx = distance.index(min(distance))
+        
+        # Min method
+        # rate_idx = 0
+        # for j in reversed(range(len(BITRATE))):
+        #     if BITRATE[j]/KB_IN_MB <= first_action:
+        #         rate_idx = j
+        #         break
+        if iLQR_SHOW:
+            print("Rate is: ", first_action)
+            print("Rate index: ", rate_idx)
+            input()
         return rate_idx
 
     def sim_fetch(self, buffer_len, seg_rate, rtt, bw, state = 1, playing_speed = 1.0):
