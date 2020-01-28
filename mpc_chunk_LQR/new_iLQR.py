@@ -22,10 +22,10 @@ class iLQR_solver(object):
 
     def __init__(self):
         self.w1 = 1
-        self.w2 = 2 
+        self.w2 = 1 
         self.w3 = 1 
         self.w4 = 1
-        self.w5 = 1
+        self.w5 = 0.25 
         self.barrier_1 = 1
         self.barrier_2 = 1
         self.delta = 0.2  # 0.2s
