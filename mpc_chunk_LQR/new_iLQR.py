@@ -46,7 +46,7 @@ class iLQR_solver(object):
         self.b0 = np.round(buffer_len/MS_IN_S, 2)
         self.r0 = np.round(rate/KB_IN_MB, 2)
         # self.target_buffer = max(min((CHUNK_IN_SEG-1)*self.delta, self.target_buffer), (CHUNK_IN_SEG-3)*self.delta)
-        self.target_buffer = max(self.target_buffer, (CHUNK_IN_SEG-3)*self.delta)
+        self.target_buffer = max(self.target_buffer, (CHUNK_IN_SEG-2)*self.delta)
         if iLQR_SHOW:
             print("Initial X0 is: ", self.b0, self.r0)
             print("iLQR target buffer is: ", self.target_buffer)
