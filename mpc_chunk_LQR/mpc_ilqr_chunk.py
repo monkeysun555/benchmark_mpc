@@ -6,10 +6,11 @@ import live_server_chunk as live_server
 import load
 import mpc_solver_chunk as mpc
 import math
+# import new_iLQR as iLQR
 import iLQR
 
 IF_NEW = 0
-IF_ALL_TESTING = 0
+IF_ALL_TESTING = 1
 COMPARE_ILQR_VERSION = 0
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
@@ -28,7 +29,7 @@ CHUNK_IN_SEG = SEG_DURATION/CHUNK_DURATION
 CHUNK_SEG_RATIO = CHUNK_DURATION/SEG_DURATION
 
 # Initial buffer length on server side
-SERVER_START_UP_TH = 4000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
+SERVER_START_UP_TH = 2000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
 # how user will start playing video (user buffer)
 USER_START_UP_TH = 2000.0
 # set a target latency, then use fast playing to compensate
@@ -56,6 +57,7 @@ RATIO_LOW_5 = 0.75				# This is the lowest ratio between first chunk and the sum
 RATIO_HIGH_5 = 1.0			# This is the highest ratio between first chunk and the sum of all others
 MPC_STEP = 5
 # bitrate number is 6, no bin
+BUFFER_AVE_LEN = 10
 
 if not IF_NEW:
 	DATA_DIR = '../../bw_traces_test/cooked_test_traces/'
@@ -166,7 +168,7 @@ def t_main():
 		a_batch = []
 		c_batch = []
 		l_batch = []
-
+		buffer_his = []
 		last_bit_rate = -1
 		for i in range(TEST_DURATION):
 			print("Current index: ", i)
@@ -180,7 +182,9 @@ def t_main():
 				server.init_encoding()
 				init = 0
 			mpc_tp_pred = mpc.predict_mpc_tp(mpc_tp_rec)
-
+			buffer_his.append(player.get_buffer_length()/MS_IN_S)
+			if len(buffer_his) >= BUFFER_AVE_LEN:
+				del buffer_his[0]
 			# Method 1:
 			# bit_rate_seq, opt_reward = mpc.mpc_find_action_chunk([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
 			# 						 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, [], ratio])
@@ -192,6 +196,7 @@ def t_main():
 				bit_rate = 0
 			else:
 				latency = server.get_time() - player.get_playing_time()
+				iLQR_solver.set_target_buff(np.mean(buffer_his))
 				iLQR_solver.set_bu(latency)
 				iLQR_solver.set_predicted_bw_rtt(mpc_tp_pred)
 				if COMPARE_ILQR_VERSION == 1:
@@ -329,6 +334,7 @@ def t_main():
 		# need to modify
 		time_duration = server.get_time() - starting_time
 		tp_record, time_record = new_record_tp(player.get_throughput_trace(), player.get_time_trace(), starting_time_idx, time_duration + buffer_length) 
+		print("Entire reward is:", np.sum(r_batch))
 		log_file.write('\t'.join(str(tp) for tp in tp_record))
 		log_file.write('\n')
 		log_file.write('\t'.join(str(time) for time in time_record))
@@ -383,6 +389,7 @@ def main():
 	buffer_length = 0.0
 	r_batch = []
 	last_bit_rate = -1
+	buffer_his = []
 
 	for i in range(TEST_DURATION):
 		print("Current index: ", i)
@@ -396,8 +403,9 @@ def main():
 			server.init_encoding()
 			init = 0
 		mpc_tp_pred = mpc.predict_mpc_tp(mpc_tp_rec)
-
-
+		buffer_his.append(player.get_buffer_length()/MS_IN_S)
+		if len(buffer_his) >= BUFFER_AVE_LEN:
+			del buffer_his[0]
 		# Method 1: greedy search
 		# bit_rate_seq, opt_reward = mpc.mpc_find_action_chunk([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
 		# 						 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, [], ratio])
@@ -409,6 +417,7 @@ def main():
 			bit_rate = 0
 		else:
 			latency = server.get_time() - player.get_playing_time()
+			iLQR_solver.set_target_buff(np.mean(buffer_his))
 			iLQR_solver.set_bu(latency)
 			iLQR_solver.set_predicted_bw_rtt(mpc_tp_pred)
 			if COMPARE_ILQR_VERSION == 1:
@@ -435,7 +444,7 @@ def main():
 					iLQR_solver.set_x0(player.get_buffer_length())
 				else:
 					iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
-					iLQR_solver.generate_initial_x(min(mpc_tp_pred))
+					iLQR_solver.generate_initial_x(mpc_tp_pred[0])
 					bit_rate = iLQR_solver.iterate_LQR()
 
 		# bit_rate = upper_actions[i]		# Get optimal actions
