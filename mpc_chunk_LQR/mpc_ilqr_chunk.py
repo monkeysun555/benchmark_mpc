@@ -6,11 +6,11 @@ import live_server_chunk as live_server
 import load
 import mpc_solver_chunk as mpc
 import math
-# import new_iLQR as iLQR
-import iLQR
+import new_iLQR as iLQR
+# import iLQR
 
 IF_NEW = 0
-IF_ALL_TESTING = 1
+IF_ALL_TESTING = 0
 COMPARE_ILQR_VERSION = 0
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
