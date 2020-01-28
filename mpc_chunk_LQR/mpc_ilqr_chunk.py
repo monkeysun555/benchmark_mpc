@@ -10,7 +10,7 @@ import new_iLQR as iLQR
 # import iLQR
 
 IF_NEW = 0
-IF_ALL_TESTING = 1
+IF_ALL_TESTING = 0
 COMPARE_ILQR_VERSION = 0
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
@@ -61,7 +61,7 @@ BUFFER_AVE_LEN = 10
 
 if not IF_NEW:
 	DATA_DIR = '../../bw_traces_test/cooked_test_traces/'
-	TRACE_NAME = '85+-29ms_loss1_2_1.txt'
+	TRACE_NAME = '30+-10ms_loss0.5_1_2.txt'
 else:
 	DATA_DIR = '../../new_traces/test_sim_traces/'
 	TRACE_NAME = 'norway_car_1'
