@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 LQR_DEBUG = 0
 iLQR_SHOW = 0
@@ -21,6 +22,7 @@ class iLQR_solver(object):
         self.w1 = 1
         self.w2 = 1
         self.w3 = 1 
+        self.w4 = 1
         self.barrier_1 = 1
         self.barrier_2 = 1
         self.delta = 1.0  # 1s
@@ -32,10 +34,16 @@ class iLQR_solver(object):
         self.Bu = None
         self.b0 = None
         self.r0 = None
+        self.target_buffer = None
+        self.rates = None
+
+    def set_target_buff(self, target):
+        self.target_buffer = target
 
     def set_x0(self, buffer_len, rate=BITRATE[0]):
         self.b0 = np.round(buffer_len/MS_IN_S, 2)
         self.r0 = np.round(rate/KB_IN_MB, 2)
+        self.target_buffer = max(min(0.5*self.Bu, self.target_buffer), self.delta)
         if iLQR_SHOW:
             print("Initial X0 is: ", self.b0, self.r0)
 
@@ -49,6 +57,24 @@ class iLQR_solver(object):
 
     def set_step(self, step=DEF_N_STEP):
         self.n_step = step
+
+    def checking(self):
+        # print(self.rates[0])
+        if math.isnan(self.rates[0]):
+            # input() 
+            self.reset()
+            return True
+
+    def nan_index(self, p_bw):
+        rate_idx = 0
+        for j in reversed(range(len(BITRATE))):
+            if BITRATE[j]/KB_IN_MB <= p_bw:
+                rate_idx = j
+                break
+        return rate_idx
+
+    def reset(self):
+        self.rates = [BITRATE[0]/KB_IN_MB] * self.n_step
 
     def set_bu(self, bu):
         self.Bu = bu/MS_IN_S + 1
@@ -89,6 +115,9 @@ class iLQR_solver(object):
         ce_power = -20*(b-u/bw-rtt+0.05)
         ce_power_1 = -50*(u-0.1)
         ce_power_2 = 50*(u-6.5)
+
+        ce_power_terminate = -20*(b-u/bw-rtt + self.delta - self.target_buffer+0.05)
+
         # Without z2 for buffer upper bound
         # self.ft = [[(np.e**f_1)/(np.e**f_1+1) + (20*(np.e**f_1)*(b-1))/((np.e**f_1+1)**2), 0, -(np.e**f_1)/(bw*(np.e**f_1+1)) + (20*(u+bw)*np.e**f_1)/((np.e**f_1+1)**2)],
         #          [0, 0, 1]]
@@ -111,12 +140,27 @@ class iLQR_solver(object):
         self.ft = np.array([[(100*np.e**f_1/((np.e**f_1+1)**2))*((self.Bu*np.e**f_3+f_2)/(np.e**f_3+1)) + ((self.Bu*100*np.e**f_3+np.e**f_3+1-100*np.e**f_3*f_2)/(np.e**f_3+1)**2)*np.e**f_1/(np.e**f_1+1)-100*np.e**f_1/(np.e**f_1+1)**2,
                     0, -100*np.e**f_1*(self.Bu*np.e**f_3+f_2)/(bw*(np.e**f_1+1)**2*(np.e**f_3+1)) + (np.e**f_1/(np.e**f_1+1))*(-100*self.Bu*np.e**f_3-np.e**f_3-1+100*np.e**f_3*f_2)/(bw*(np.e**f_3+1)**2) + (100*np.e**f_1)/(bw*(np.e**f_1+1)**2)],
                    [0, 0, 1]])
-        # Shape 3*1
+        # if step_i == self.n_step-1:
+        #     # Shape 3*1
+        #     self.ct = np.array([[-20*self.w3*np.e**ce_power -20*self.w4*np.e**ce_power_terminate, \
+        #             self.w2*2*np.log(r/u)/r, \
+        #             self.w1*-1/u + self.w2*2*np.log(u/r)/u + 20*self.w3/bw*np.e**ce_power + 20*self.w4/bw*np.e**ce_power_terminate \
+        #             - 50*self.barrier_1*np.e**ce_power_1 + 50*self.barrier_2*np.e**ce_power_2]]).T
+
+        #     # Shape 3*3
+        #     self.CT = np.array([[400*self.w3*np.e**ce_power + 400*self.w4*np.e**ce_power_terminate, 0, \
+        #            -400*self.w3/bw*np.e**ce_power-400*self.w4/bw*np.e**ce_power_terminate],
+        #            [0, self.w2*2/(r**2)*(1-np.log(r/u)), -2*self.w2/(u*r)],
+        #            [-400*self.w3/bw*np.e**ce_power -400*self.w4/bw*np.e**ce_power_terminate , self.w2*-2/(u*r), \
+        #            self.w1/u**2 + self.w2*2/u**2*(1-np.log(u/r)) + self.w3*400*np.e**ce_power/bw**2 + self.w4*400*np.e**ce_power_terminate/bw**2 \
+        #            + 2500.0*self.barrier_1*np.e**ce_power_1 + 2500*self.barrier_2*np.e**ce_power_2]]).T
+        
+        # else:
         self.ct = np.array([[-20*self.w3*np.e**ce_power, self.w2*2*np.log(r/u)/r, self.w1*-1/u + self.w2*2*np.log(u/r)/u + 20*self.w3/bw*np.e**ce_power - 50*self.barrier_1*np.e**ce_power_1 + 50*self.barrier_2*np.e**ce_power_2]]).T
 
         # Shape 3*3
         self.CT = np.array([[400*self.w3*np.e**ce_power, 0, -400*self.w3/bw*np.e**ce_power],
-                   [0, self.w2*2/(r**2)*(1-np.log(r/u)), -2*self.w2/(u*r)],
+                       [0, self.w2*2/(r**2)*(1-np.log(r/u)), -2*self.w2/(u*r)],
                    [-400*self.w3/bw*np.e**ce_power, self.w2*-2/(u*r), self.w1/u**2 + self.w2*2/u**2*(1-np.log(u/r)) + self.w3*400*np.e**ce_power/bw**2 + 2500.0*self.barrier_1*np.e**ce_power_1 + 2500*self.barrier_2*np.e**ce_power_2]]).T
         if LQR_DEBUG:
             print("Update matrix in step: ", step_i)
@@ -129,6 +173,7 @@ class iLQR_solver(object):
         VT = 0
         vt = 0
         for ite_i in range(self.n_iteration):
+            converge = True
             KT_list = [0.0] * self.n_step
             kt_list = [0.0] * self.n_step
             VT_list = [0.0] * self.n_step
@@ -193,6 +238,10 @@ class iLQR_solver(object):
                 if LQR_DEBUG:
                     print("New action: ", new_u)
                     input()
+
+                # Check converge
+                if converge and not np.round(new_u[0][0], 2) == np.round(self.rates[step_i],2):
+                    converge = False
                 self.rates[step_i] = np.round(new_u[0][0], 2)
                 new_x = new_xt_list[step_i]             # Get new state
                 rtt = self.predicted_rtt[step_i]
@@ -214,6 +263,9 @@ class iLQR_solver(object):
             # np.clip(self.rates, a_min = MIN_RATE, a_max=MAX_RATE)
             # self.rates.tolist()
             # ## Might influence system evolution
+            # Check converge
+            if converge:
+                break
 
             if LQR_DEBUG:
                 print("New states: ", self.states)
@@ -232,8 +284,13 @@ class iLQR_solver(object):
 
     def translate_to_rate_idx(self):
         first_action = self.rates[0]
-        distance = [np.abs(first_action-br/KB_IN_MB) for br in BITRATE]
-        rate_idx = distance.index(min(distance))
+        # distance = [np.abs(first_action-br/KB_IN_MB) for br in BITRATE]
+        # rate_idx = distance.index(min(distance))
+        rate_idx = 0
+        for j in reversed(range(len(BITRATE))):
+            if BITRATE[j]/KB_IN_MB <= first_action:
+                rate_idx = j
+                break
         if LQR_DEBUG:
             print("Distance is: ", distance)
             print("First action is: ", first_action)

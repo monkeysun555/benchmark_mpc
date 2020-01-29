@@ -53,10 +53,11 @@ RATIO_LOW_5 = 0.75				# This is the lowest ratio between first chunk and the sum
 RATIO_HIGH_5 = 1.0			# This is the highest ratio between first chunk and the sum of all others
 MPC_STEP = 5
 # bitrate number is 6, no bin
+BUFFER_AVE_LEN = 5
 
 if not IF_NEW:
 	DATA_DIR = '../../bw_traces_test/cooked_test_traces/'
-	TRACE_NAME = '100+-34ms_loss0.5_0_2.txt'
+	TRACE_NAME = '70+-24ms_loss1_0_2.txt'
 else:
 	DATA_DIR = '../../new_traces/test_sim_traces/'
 	TRACE_NAME = 'norway_car_10'
@@ -165,10 +166,14 @@ def t_main():
 		c_batch = []
 		l_batch = []
 		last_bit_rate = -1
+		buffer_his = []
 
 		for i in range(TEST_DURATION):
 			# print "Current index: ", i
 			mpc_tp_pred = mpc.predict_mpc_tp(mpc_tp_rec)
+			buffer_his.append(player.get_buffer_length()/MS_IN_S)
+			if len(buffer_his) >= BUFFER_AVE_LEN:
+				del buffer_his[0]
 			# Method 1: MPC, search
 			# bit_rate_seq, opt_reward = mpc.mpc_find_action_seg([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
 			# 						 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, []])
@@ -178,6 +183,7 @@ def t_main():
 				bit_rate = 0
 			else:
 				latency = server.get_time() - player.get_playing_time()
+				iLQR_solver.set_target_buff(np.mean(buffer_his))
 				iLQR_solver.set_bu(latency)
 				iLQR_solver.set_predicted_bw_rtt(mpc_tp_pred)
 				if last_bit_rate == -1:
@@ -186,6 +192,10 @@ def t_main():
 					iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
 				iLQR_solver.generate_initial_x(min(mpc_tp_pred)/KB_IN_MB)
 				bit_rate = iLQR_solver.iterate_LQR()
+				print("rates are: ", iLQR_solver.rates)
+				if iLQR_solver.checking():
+					bit_rate = iLQR_solver.nan_index(mpc_tp_pred[0]/KB_IN_MB)
+			print("Bitrate is: ", bit_rate)
 			# print "Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward
 			# last_bit_rate = bit_rate
 			# bit_rate = upper_actions[i]		# Get optimal actions
@@ -339,20 +349,27 @@ def main():
 	buffer_length = 0.0
 	r_batch = []
 	last_bit_rate = -1
+	buffer_his = []
 
 	for i in range(TEST_DURATION):
 		print("Current index: ", i)
 		mpc_tp_pred = mpc.predict_mpc_tp(mpc_tp_rec)
+		buffer_his.append(player.get_buffer_length()/MS_IN_S)
+		if len(buffer_his) >= BUFFER_AVE_LEN:
+			del buffer_his[0]
+
 		# Method 1:
-		bit_rate_seq, opt_reward = mpc.mpc_find_action_seg([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
-								 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, []])
-		bit_rate = bit_rate_seq[0]
+		# bit_rate_seq, opt_reward = mpc.mpc_find_action_seg([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
+		# 						 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, []])
+		# bit_rate = bit_rate_seq[0]
+		# print("Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward)
 
 		# Method 2:
 		if player.get_buffer_length() == 0:
 			bit_rate = 0
 		else:
 			latency = server.get_time() - player.get_playing_time()
+			iLQR_solver.set_target_buff(np.mean(buffer_his))
 			iLQR_solver.set_bu(latency)
 			iLQR_solver.set_predicted_bw_rtt(mpc_tp_pred)
 			if last_bit_rate == -1:
@@ -361,14 +378,17 @@ def main():
 				iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
 			iLQR_solver.generate_initial_x(min(mpc_tp_pred)/KB_IN_MB)
 			bit_rate = iLQR_solver.iterate_LQR()
+			print("rates are: ", iLQR_solver.rates)
+			if iLQR_solver.checking():
+				bit_rate = iLQR_solver.nan_index(mpc_tp_pred[0]/KB_IN_MB)
 
-		print("Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward)
+		print("Selected rate is: ", bit_rate)
 		# last_bit_rate = bit_rate
 		# bit_rate = upper_actions[i]		# Get optimal actions
 		# action_reward = 0.0				# Total reward is for all chunks within on segment
 
 		download_seg_info = server.get_next_delivery()
-		print("seg info is " + str(download_seg_info))
+		# print("seg info is " + str(download_seg_info))
 		download_seg_idx = download_seg_info[0]
 		download_seg_size = download_seg_info[1][bit_rate]
 		server_wait_time = 0.0

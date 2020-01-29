@@ -10,7 +10,7 @@ import new_iLQR as iLQR
 # import iLQR
 
 IF_NEW = 0
-IF_ALL_TESTING = 0
+IF_ALL_TESTING = 1
 COMPARE_ILQR_VERSION = 0
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
@@ -55,9 +55,9 @@ RATIO_LOW_2 = 2.0				# This is the lowest ratio between first chunk and the sum 
 RATIO_HIGH_2 = 10.0			# This is the highest ratio between first chunk and the sum of all others
 RATIO_LOW_5 = 0.75				# This is the lowest ratio between first chunk and the sum of all others
 RATIO_HIGH_5 = 1.0			# This is the highest ratio between first chunk and the sum of all others
-MPC_STEP = 10
+MPC_STEP = 5
 # bitrate number is 6, no bin
-BUFFER_AVE_LEN = 10
+BUFFER_AVE_LEN = 5
 
 if not IF_NEW:
 	DATA_DIR = '../../bw_traces_test/cooked_test_traces/'
@@ -225,6 +225,8 @@ def t_main():
 						iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
 						iLQR_solver.generate_initial_x(mpc_tp_pred[0])
 						bit_rate = iLQR_solver.iterate_LQR()
+						if iLQR_solver.checking():
+							bit_rate = iLQR_solver.nan_index(mpc_tp_pred[0]/KB_IN_MB)
 
 			c_batch.append(np.abs(BITRATE[bit_rate] - BITRATE[last_bit_rate]))
 			# bit_rate = upper_actions[i]		# Get optimal actions
@@ -446,6 +448,8 @@ def main():
 					iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
 					iLQR_solver.generate_initial_x(mpc_tp_pred[0])
 					bit_rate = iLQR_solver.iterate_LQR()
+					if iLQR_solver.checking():
+						bit_rate = iLQR_solver.nan_index(mpc_tp_pred[0]/KB_IN_MB)
 
 		# bit_rate = upper_actions[i]		# Get optimal actions
 		action_reward = 0.0				# Total reward is for all chunks within on segment
