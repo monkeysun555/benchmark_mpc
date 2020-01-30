@@ -7,7 +7,7 @@ import load
 import mpc_solver_seg as mpc
 import math 
 import iLQR
-IF_NEW = 0
+IF_NEW = 1
 IF_ALL_TESTING = 1		# IF THIS IS 1, IF_NEW MUST BE 1
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
