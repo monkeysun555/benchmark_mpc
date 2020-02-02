@@ -22,7 +22,7 @@ class iLQR_solver(object):
     # And f2 = b - u/bw - rtt + delta
 
     def __init__(self):
-        self.w1 = 1
+        self.w1 = 1.5
         self.w2 = 1
         self.w3 = 1 
         self.w4 = 1
