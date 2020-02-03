@@ -53,7 +53,7 @@ class Live_Player(object):
 		# print "In get state, state is ", self.state
 		# print "In get state, real time is: ", real_timing
 
-	def fetch(self, next_chunk_set, seg_idx, chunk_idx, take_action, num_chunk, playing_speed = 1.0):
+	def fetch(self, next_chunk_set, seg_idx, chunk_idx, take_action, num_chunk, net_i, playing_speed = 1.0):
 		# Action initialization
 		# print "start fetching, seg idx is:", seg_idx
 		start_state = self.state
@@ -100,7 +100,7 @@ class Live_Player(object):
 			# throughput = self.throughput_trace[self.time_idx]	# in Mbps or Kbpms
 			# duration = self.time_trace[self.time_idx] * MS_IN_S - self.last_trace_time		# in ms
 
-			throughput = self.throughput_trace[seg_idx]	# in Mbps or Kbpms
+			throughput = self.throughput_trace[net_i]	# in Mbps or Kbpms
 			duration = float('inf')
 			print("throughput is: ", throughput)
 			deliverable_size = throughput * duration * PACKET_PAYLOAD_PORTION	# in Kbits		

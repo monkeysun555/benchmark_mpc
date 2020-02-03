@@ -69,12 +69,12 @@ else:
 	if IF_NEW:
 		LOG_FILE_DIR = './all_test_results'
 		LOG_FILE = LOG_FILE_DIR + '/MPCCHUNK_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
-		ALL_TESTING_DIR = '../../algorithms/all_results/'
+		ALL_TESTING_DIR = '../../benchmark_compare/all_results/'
 		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC\'_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 	else:
 		LOG_FILE_DIR = './all_test_results_old'
 		LOG_FILE = LOG_FILE_DIR + '/MPCCHUNK_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
-		ALL_TESTING_DIR = '../../algorithms/all_results_old/'
+		ALL_TESTING_DIR = '../../benchmark_compare/all_results_old/'
 		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC\'_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 
 def ReLU(x):

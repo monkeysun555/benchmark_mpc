@@ -69,12 +69,12 @@ else:
 	if IF_NEW:
 		LOG_FILE_DIR = './all_test_results'
 		LOG_FILE = LOG_FILE_DIR + '/MPCCHUNK_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
-		ALL_TESTING_DIR = '../../algorithms/all_results/'
+		ALL_TESTING_DIR = '../../benchmark_compare/all_results/'
 		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC\'_cp_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 	else:
 		LOG_FILE_DIR = './all_test_results_old'
 		LOG_FILE = LOG_FILE_DIR + '/MPCCHUNK_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
-		ALL_TESTING_DIR = '../../algorithms/all_results_old/'
+		ALL_TESTING_DIR = '../../benchmark_compare/all_results_old/'
 		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC\'_cp_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 
 def ReLU(x):
@@ -200,15 +200,15 @@ def t_main():
 				download_chunk_size = download_chunk_info[3][bit_rate]		# Might be several chunks
 				chunk_number = download_chunk_end_idx - download_chunk_idx + 1
 				assert chunk_number == 1
-				assert download_seg_idx == i
+				# assert download_seg_idx == i
 				server_wait_time = 0.0
 				sync = 0
 				missing_count = 0
 				if download_seg_idx >= TEST_DURATION:
 					break
-				assert mpc_tp_pred[0]/KB_IN_MB == player.throughput_trace[download_seg_idx]
+				# assert mpc_tp_pred[0]/KB_IN_MB == player.throughput_trace[download_seg_idx]
 				real_chunk_size, download_duration, freezing, time_out, player_state = player.fetch(download_chunk_size, 
-																		download_seg_idx, download_chunk_idx, take_action, chunk_number)
+																		download_seg_idx, download_chunk_idx, take_action, chunk_number, i)
 				take_action = 0
 				current_mpc_tp += chunk_number/CHUNK_IN_SEG * real_chunk_size / download_duration
 				buffer_length = player.get_buffer_length()
