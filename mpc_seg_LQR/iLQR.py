@@ -156,12 +156,12 @@ class iLQR_solver(object):
         #            + 2500.0*self.barrier_1*np.e**ce_power_1 + 2500*self.barrier_2*np.e**ce_power_2]]).T
         
         # else:
-        self.ct = np.array([[-20*self.w3*np.e**ce_power, self.w2*2*np.log(r/u)/r, self.w1*-1/u + self.w2*2*np.log(u/r)/u + 20*self.w3/bw*np.e**ce_power - 50*self.barrier_1*np.e**ce_power_1 + 50*self.barrier_2*np.e**ce_power_2]]).T
+        self.ct = np.array([[-20*self.w3*np.e**ce_power, self.w2*2*np.log(r/u)/r, self.w1*-1/u + self.w2*2*np.log(u/r)/u + 20*self.w3*np.e**ce_power/bw - 50*self.barrier_1*np.e**ce_power_1 + 50*self.barrier_2*np.e**ce_power_2]]).T
 
         # Shape 3*3
-        self.CT = np.array([[400*self.w3*np.e**ce_power, 0, -400*self.w3/bw*np.e**ce_power],
-                       [0, self.w2*2/(r**2)*(1-np.log(r/u)), -2*self.w2/(u*r)],
-                   [-400*self.w3/bw*np.e**ce_power, self.w2*-2/(u*r), self.w1/u**2 + self.w2*2/u**2*(1-np.log(u/r)) + self.w3*400*np.e**ce_power/bw**2 + 2500.0*self.barrier_1*np.e**ce_power_1 + 2500*self.barrier_2*np.e**ce_power_2]]).T
+        self.CT = np.array([[400*self.w3*np.e**ce_power, 0, -400*self.w3*np.e**ce_power/bw],
+                       [0, self.w2*2*(1-np.log(r/u))/r**2, -2*self.w2/(u*r)],
+                   [-400*self.w3*np.e**ce_power/bw, self.w2*-2/(u*r), self.w1/u**2 + self.w2*2*(1-np.log(u/r))/u**2 + self.w3*400*np.e**ce_power/bw**2 + 2500.0*self.barrier_1*np.e**ce_power_1 + 2500*self.barrier_2*np.e**ce_power_2]]).T
         if LQR_DEBUG:
             print("Update matrix in step: ", step_i)
             print("CT matrix: ", self.CT)

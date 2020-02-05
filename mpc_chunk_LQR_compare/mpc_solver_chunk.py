@@ -1,8 +1,9 @@
 	# import cplex
 import numpy as np
 import math
+from config import config as cf
 
-BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
+# BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 # BITRATE = [300.0, 6000.0]
 
 RTT_LOW = 30.0
@@ -48,9 +49,9 @@ def lat_penalty(x):
 	return 1.0/(1+math.exp(CONST-X_RATIO*x)) - 1.0/(1+math.exp(CONST))
 
 def generate_chunks(ratio):
-	current_seg_size = [[] for i in range(len(BITRATE))]
+	current_seg_size = [[] for i in range(len(cf.bitrate))]
 	encoding_coef = 1.0
-	estimate_seg_size = [x * encoding_coef for x in BITRATE]
+	estimate_seg_size = [x * encoding_coef for x in cf.bitrate]
 
 	if CHUNK_IN_SEG == 2:
 	# Distribute size for chunks, currently, it should depend on chunk duration (200 or 500)
@@ -79,7 +80,7 @@ def mpc_solver_chunk(mpc_input):
 	sys_state = []
 	chunks_info = generate_chunks(ratio)
 	# print "chunk info: ", chunks_info
-	for i in range(len(BITRATE)):
+	for i in range(len(cf.bitrate)):
 		# print "Birte is: ", i
 		current_chunks = chunks_info[i]
 		pred_tp = mpc_input[0]
@@ -152,12 +153,12 @@ def mpc_solver_chunk(mpc_input):
 			latency = server_time - playback_time
 			# print player_time, playback_time, server_time, freezing, buffer_length, state
 
-			log_bit_rate = np.log(BITRATE[i] / BITRATE[0])
+			log_bit_rate = np.log(cf.bitrate[i] / cf.bitrate[0])
 			if last_bit_rate == -1:
 				assert chunk_num == CHUNK_IN_SEG
 				log_last_bit_rate = log_bit_rate
 			else:
-				log_last_bit_rate = np.log(BITRATE[last_bit_rate] / BITRATE[0])
+				log_last_bit_rate = np.log(cf.bitrate[last_bit_rate] / cf.bitrate[0])
 
 			# print "After fetching, buffer is: ", buffer_length, " download time: ", download_time
 			# print "chunk num: ", chunk_num

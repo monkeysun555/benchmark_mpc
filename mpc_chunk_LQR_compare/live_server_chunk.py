@@ -1,4 +1,5 @@
 import numpy as np
+from config import config as cf
 
 SEG_DURATION = 1000.0
 # FRAG_DURATION = 1000.0
@@ -13,7 +14,7 @@ RANDOM_SEED = 10
 MS_IN_S = 1000.0
 KB_IN_MB = 1000.0
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
-BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
+# BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 # BITRATE = [300.0, 6000.0]
 # BITRATE = [500.0, 2000.0, 5000.0, 8000.0, 16000.0]	# 5 actions
 
@@ -41,7 +42,7 @@ class Live_Server(object):
 		self.chunks = []	# 1 for initial chunk, 0 for following chunks
 		self.ratio = None
 		self.chunks = []	# 1 for initial chunk, 0 for following chunks
-		self.current_seg_size = [[] for i in range(len(BITRATE))]
+		self.current_seg_size = [[] for i in range(len(cf.bitrate))]
 
 	def set_ratio(self, ratio):
 		self.ratio = ratio
@@ -74,7 +75,7 @@ class Live_Server(object):
 		self.next_delivery.extend(deliver_chunks[0][:2])
 		self.next_delivery.append(deliver_chunks[-1][1])
 		delivery_sizes = []
-		for i in range(len(BITRATE)):
+		for i in range(len(cf.bitrate)):
 			delivery_sizes.append(np.sum([chunk[2][i] for chunk in deliver_chunks]))
 		self.next_delivery.append(delivery_sizes)
 		
@@ -129,9 +130,9 @@ class Live_Server(object):
 
 	# chunk size for next/current segment
 	def generate_chunk_size(self):
-		self.current_seg_size = [[] for i in range(len(BITRATE))]
+		self.current_seg_size = [[] for i in range(len(cf.bitrate))]
 		encoding_coef = 1.0
-		estimate_seg_size = [x * encoding_coef for x in BITRATE]
+		estimate_seg_size = [x * encoding_coef for x in cf.bitrate]
 
 		if self.chunk_in_seg == 2:
 		# Distribute size for chunks, currently, it should depend on chunk duration (200 or 500)
@@ -163,7 +164,7 @@ class Live_Server(object):
 		self.current_seg_idx = -1
 		self.current_chunk_idx = 0
 		self.chunks = []	# 1 for initial chunk, 0 for following chunks
-		self.current_seg_size = [[] for i in range(len(BITRATE))]
+		self.current_seg_size = [[] for i in range(len(cf.bitrate))]
 		self.encoding_update(0.0, self.time)
 		self.next_delivery = []
 		# self.delay_tol = start_up_th

@@ -8,19 +8,28 @@ import mpc_solver_chunk as mpc
 import math
 import new_iLQR as iLQR
 # import iLQR
+from config import config as cf
 
 IF_NEW = 0
 IF_ALL_TESTING = 1
 COMPARE_ILQR_VERSION = 0
-# New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
-BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
+# N_RATE_V = 0 		# 0: 6  1: 10  2: 20
+# # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
+# if N_RATE_V == 0:
+# 	BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
+# elif N_RATE_V == 1:
+# 	BITRATE = [300.0, 500.0, 1000.0, 1500.0, 2000.0, 2500.0, 3000.0, 4000.0, 5000.0, 6000.0]
+# elif N_RATE_V == 2:
+# 	BITRATE = [300.0, 350.0, 400.0, 500.0, 750.0, 1000.0, 1250.0, 1500.0, 1750.0, 2000.0, 2250.0, \
+# 			   2500.0, 2750.0, 3000.0, 3500.0, 4000.0, 4500.0, 5000.0, 5500.0, 6000.0]
+
 # BITRATE = [300.0, 6000.0]
 
 RANDOM_SEED = 13
 RAND_RANGE = 1000
 MS_IN_S = 1000.0
 KB_IN_MB = 1000.0	# in ms
-INIT_BW = BITRATE[0]
+INIT_BW = cf.bitrate[0]
 
 SEG_DURATION = 1000.0
 # FRAG_DURATION = 1000.0
@@ -29,7 +38,7 @@ CHUNK_IN_SEG = SEG_DURATION/CHUNK_DURATION
 CHUNK_SEG_RATIO = CHUNK_DURATION/SEG_DURATION
 
 # Initial buffer length on server side
-SERVER_START_UP_TH = 2000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
+SERVER_START_UP_TH = 4000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
 # how user will start playing video (user buffer)
 USER_START_UP_TH = 2000.0
 # set a target latency, then use fast playing to compensate
@@ -74,12 +83,13 @@ else:
 		LOG_FILE_DIR = './all_test_results'
 		LOG_FILE = LOG_FILE_DIR + '/MPC_iLQR_CHUNK_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 		ALL_TESTING_DIR = '../../benchmark_compare/all_results/'
-		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_iLQR_CHUNK_cp_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
+		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_iLQR_CHUNK_cp_' + str(cf.n_rate_v) + '_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 	else:
+		print("version: ", cf.n_rate_v)
 		LOG_FILE_DIR = './all_test_results_old'
 		LOG_FILE = LOG_FILE_DIR + '/MPCCHUNK_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 		ALL_TESTING_DIR = '../../benchmark_compare/all_results_old/'
-		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_iLQR_CHUNK_cp_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
+		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_iLQR_CHUNK_cp_' + str(cf.n_rate_v) + '_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 
 def ReLU(x):
 	return x * (x > 0)
@@ -130,7 +140,7 @@ def t_main():
 	if not os.path.isdir(ALL_TESTING_DIR):
 		os.makedirs(ALL_TESTING_DIR)
 	all_testing_log = open(ALL_TESTING_FILE, 'w')
-
+	
 	if IF_NEW:
 		cooked_times, cooked_bws, cooked_names = load.new_loadBandwidth(DATA_DIR)
 	else:
@@ -156,8 +166,9 @@ def t_main():
 											start_up_th=SERVER_START_UP_TH, randomSeed=RANDOM_SEED)
 		initial_delay = server.get_time() - player.get_playing_time()	# This initial delay, cannot be reduced, all latency is calculated based on this
 		print(initial_delay, cooked_name)
-		log_path = LOG_FILE + '_' + cooked_name
-		log_file = open(log_path, 'w')
+		
+		# log_path = LOG_FILE + '_' + cooked_name
+		# log_file = open(log_path, 'w')
 
 		init = 1
 		starting_time = server.get_time()	# Server starting time
@@ -206,7 +217,7 @@ def t_main():
 						if last_bit_rate == -1:
 							iLQR_solver.set_x0(player.get_buffer_length())
 						else:
-							iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
+							iLQR_solver.set_x0(player.get_buffer_length(), cf.bitrate[last_bit_rate])
 							if iLQR_v == 0:
 								iLQR_solver.generate_initial_x(min(mpc_tp_pred))
 							elif iLQR_v == 1:
@@ -223,13 +234,15 @@ def t_main():
 					if last_bit_rate == -1:
 						iLQR_solver.set_x0(player.get_buffer_length())
 					else:
-						iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
+						iLQR_solver.set_x0(player.get_buffer_length(), cf.bitrate[last_bit_rate])
 						iLQR_solver.generate_initial_x(mpc_tp_pred[0])
 						bit_rate = iLQR_solver.iterate_LQR()
 						if iLQR_solver.checking():
-							bit_rate = iLQR_solver.nan_index(mpc_tp_pred[0]/KB_IN_MB)
-
-			c_batch.append(np.abs(BITRATE[bit_rate] - BITRATE[last_bit_rate]))
+							print("Enter checking!!!")
+							bit_rate = max(iLQR_solver.nan_index(mpc_tp_pred[0]/KB_IN_MB)-1, 0)
+			print("Last rate is: ", last_bit_rate)
+			print("bitrate idx is: ", bit_rate)
+			c_batch.append(np.abs(cf.bitrate[bit_rate] - cf.bitrate[last_bit_rate]))
 			# bit_rate = upper_actions[i]		# Get optimal actions
 			action_reward = 0.0				# Total reward is for all chunks within on segment
 			take_action = 1
@@ -281,11 +294,11 @@ def t_main():
 				latency = server.get_time() - player.get_playing_time()
 				player_state = player.get_state()
 
-				log_bit_rate = np.log(BITRATE[bit_rate] / BITRATE[0])
+				log_bit_rate = np.log(cf.bitrate[bit_rate] / cf.bitrate[0])
 				if last_bit_rate == -1:
 					log_last_bit_rate = log_bit_rate
 				else:
-					log_last_bit_rate = np.log(BITRATE[last_bit_rate] / BITRATE[0])
+					log_last_bit_rate = np.log(cf.bitrate[last_bit_rate] / cf.bitrate[0])
 				last_bit_rate = bit_rate	# Do no move this term. This is for chunk continuous calcualtion
 
 				reward = ACTION_REWARD * log_bit_rate * chunk_number \
@@ -319,35 +332,36 @@ def t_main():
 					mpc_tp_rec = mpc.update_mpc_rec(mpc_tp_rec, current_mpc_tp * KB_IN_MB)
 					r_batch.append(action_reward)
 					f_batch.append(seg_freezing)
-					a_batch.append(BITRATE[bit_rate])
+					a_batch.append(cf.bitrate[bit_rate])
 					l_batch.append(latency)
 
-					log_file.write(	str(server.get_time()) + '\t' +
-								    str(BITRATE[bit_rate]) + '\t' +
-									str(buffer_length) + '\t' +
-									str(freezing) + '\t' +
-									str(time_out) + '\t' +
-									str(server_wait_time) + '\t' +
-								    str(sync) + '\t' +
-								    str(latency) + '\t' +
-								    str(player.get_state()) + '\t' +
-								    str(int(bit_rate/len(BITRATE))) + '\t' +						    
-									str(action_reward) + '\n')
-					log_file.flush()
+					# log_file.write(	str(server.get_time()) + '\t' +
+					# 			    str(cf.bitrate[bit_rate]) + '\t' +
+					# 				str(buffer_length) + '\t' +
+					# 				str(freezing) + '\t' +
+					# 				str(time_out) + '\t' +
+					# 				str(server_wait_time) + '\t' +
+					# 			    str(sync) + '\t' +
+					# 			    str(latency) + '\t' +
+					# 			    str(player.get_state()) + '\t' +
+					# 			    str(int(bit_rate/len(cf.bitrate))) + '\t' +						    
+					# 				str(action_reward) + '\n')
+					# log_file.flush()
 					action_reward = 0.0
 					break
 
 		# need to modify
-		time_duration = server.get_time() - starting_time
-		tp_record, time_record = new_record_tp(player.get_throughput_trace(), player.get_time_trace(), starting_time_idx, time_duration + buffer_length) 
-		print("Entire reward is:", np.sum(r_batch))
-		log_file.write('\t'.join(str(tp) for tp in tp_record))
-		log_file.write('\n')
-		log_file.write('\t'.join(str(time) for time in time_record))
-		# log_file.write('\n' + str(IF_NEW))
-		log_file.write('\n' + str(starting_time))
-		log_file.write('\n')
-		log_file.close()
+
+		# time_duration = server.get_time() - starting_time
+		# tp_record, time_record = new_record_tp(player.get_throughput_trace(), player.get_time_trace(), starting_time_idx, time_duration + buffer_length) 
+		print("Entire reward is: ", cooked_name, np.sum(r_batch))
+		# log_file.write('\t'.join(str(tp) for tp in tp_record))
+		# log_file.write('\n')
+		# log_file.write('\t'.join(str(time) for time in time_record))
+		# # log_file.write('\n' + str(IF_NEW))
+		# log_file.write('\n' + str(starting_time))
+		# log_file.write('\n')
+		# log_file.close()
 
 		#write to all testing
 		all_testing_log.write(cooked_name + '\t')
@@ -435,7 +449,7 @@ def main():
 					if last_bit_rate == -1:
 						iLQR_solver.set_x0(player.get_buffer_length())
 					else:
-						iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
+						iLQR_solver.set_x0(player.get_buffer_length(), cf.bitrate[last_bit_rate])
 						if iLQR_v == 0:
 							iLQR_solver.generate_initial_x(min(mpc_tp_pred))
 						elif iLQR_v == 1:
@@ -452,7 +466,7 @@ def main():
 				if last_bit_rate == -1:
 					iLQR_solver.set_x0(player.get_buffer_length())
 				else:
-					iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
+					iLQR_solver.set_x0(player.get_buffer_length(), cf.bitrate[last_bit_rate])
 					iLQR_solver.generate_initial_x(mpc_tp_pred[0])
 					bit_rate = iLQR_solver.iterate_LQR()
 					if iLQR_solver.checking():
@@ -514,11 +528,11 @@ def main():
 			# print("latency is: ", latency/MS_IN_S)
 			player_state = player.get_state()
 
-			log_bit_rate = np.log(BITRATE[bit_rate] / BITRATE[0])
+			log_bit_rate = np.log(cf.bitrate[bit_rate] / cf.bitrate[0])
 			if last_bit_rate == -1:
 				log_last_bit_rate = log_bit_rate
 			else:
-				log_last_bit_rate = np.log(BITRATE[last_bit_rate] / BITRATE[0])
+				log_last_bit_rate = np.log(cf.bitrate[last_bit_rate] / cf.bitrate[0])
 			last_bit_rate = bit_rate	# Do no move this term. This is for chunk continuous calcualtion
 
 			reward = ACTION_REWARD * log_bit_rate * chunk_number \
@@ -557,7 +571,7 @@ def main():
 					r_batch.append(action_reward)
 
 					log_file.write(	str(server.get_time()) + '\t' +
-								    str(BITRATE[bit_rate]) + '\t' +
+								    str(cf.bitrate[bit_rate]) + '\t' +
 									str(buffer_length) + '\t' +
 									str(freezing) + '\t' +
 									str(time_out) + '\t' +
@@ -565,7 +579,7 @@ def main():
 								    str(sync) + '\t' +
 								    str(latency) + '\t' +
 								    str(player.get_state()) + '\t' +
-								    str(int(bit_rate/len(BITRATE))) + '\t' +						    
+								    str(int(bit_rate/len(cf.bitrate))) + '\t' +						    
 									str(action_reward) + '\n')
 					log_file.flush()
 					action_reward = 0.0

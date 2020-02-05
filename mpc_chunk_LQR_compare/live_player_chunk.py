@@ -1,7 +1,8 @@
 import numpy as np
+from config import config as cf
 
 RANDOM_SEED = 13
-BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
+# BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 # BITRATE = [300.0, 6000.0]
 # BITRATE = [500.0, 2000.0, 5000.0, 8000.0, 16000.0]	# 5 actions
 PACKET_PAYLOAD_PORTION = 0.973	# 1460/1500
@@ -102,7 +103,7 @@ class Live_Player(object):
 
 			throughput = self.throughput_trace[net_i]	# in Mbps or Kbpms
 			duration = float('inf')
-			print("throughput is: ", throughput)
+			# print("throughput is: ", throughput)
 			deliverable_size = throughput * duration * PACKET_PAYLOAD_PORTION	# in Kbits		
 			# Will also check whether freezing time exceeds the TOL
 			if deliverable_size + chunk_sent > chunk_size:

@@ -1,5 +1,6 @@
 import numpy as np
 import math 
+from config import config as cf
 
 LQR_DEBUG = 0
 iLQR_SHOW = 0
@@ -8,11 +9,11 @@ SEG_DURATION = 1.0
 CHUNK_DURATION = 0.2
 CHUNK_IN_SEG = SEG_DURATION/CHUNK_DURATION
 DEF_N_STEP = 5
-BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
+# BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 MS_IN_S = 1000.0
 KB_IN_MB = 1000.0
 MIN_RATE = 10**-8
-MAX_RATE = BITRATE[-1]/KB_IN_MB
+MAX_RATE = cf.bitrate[-1]/KB_IN_MB
 
 class iLQR_solver(object):
     # Assume c(x, u) = -w1*(log(u/r0) + w2*(log(u/r0) - log(r/r0))**2 + w3*e**(-2*(b-u/w-rtt+0.2))) + 1000*e**(-10*(u+0.4))
@@ -22,10 +23,10 @@ class iLQR_solver(object):
     # And f2 = b - u/bw - rtt + delta
 
     def __init__(self):
-        self.w1 = 1.5
-        self.w2 = 1
-        self.w3 = 1 
-        self.w4 = 1
+        self.w1 = 1
+        self.w2 = 3
+        self.w3 = 6 
+        self.w4 = 4
         self.w5 = 1
         self.barrier_1 = 1
         self.barrier_2 = 1
@@ -43,13 +44,13 @@ class iLQR_solver(object):
     def set_target_buff(self, target):
         self.target_buffer = target
 
-    def set_x0(self, buffer_len, rate=BITRATE[0]):
+    def set_x0(self, buffer_len, rate=cf.bitrate[0]):
         self.b0 = np.round(buffer_len/MS_IN_S, 2)
         self.r0 = np.round(rate/KB_IN_MB, 2)
         # Original target
         self.target_buffer = max(min((CHUNK_IN_SEG)*self.delta, self.target_buffer), (CHUNK_IN_SEG-2)*self.delta)
         # Testing
-        self.target_buffer = self.delta
+        # self.target_buffer = self.delta
         # self.target_buffer = max(self.target_buffer, (CHUNK_IN_SEG-2)*self.delta)
         if iLQR_SHOW:
             print("Initial X0 is: ", self.b0, self.r0)
@@ -65,14 +66,14 @@ class iLQR_solver(object):
 
     def nan_index(self, p_bw):
         rate_idx = 0
-        for j in reversed(range(len(BITRATE))):
-            if BITRATE[j]/KB_IN_MB <= p_bw:
+        for j in reversed(range(len(cf.bitrate))):
+            if cf.bitrate[j]/KB_IN_MB <= p_bw:
                 rate_idx = j
                 break
         return rate_idx
 
     def reset(self):
-        self.rates = [BITRATE[0]/KB_IN_MB] * self.n_step
+        self.rates = [cf.bitrate[0]/KB_IN_MB] * self.n_step
 
 
     def set_predicted_bw_rtt(self, predicted_bw):
@@ -117,7 +118,7 @@ class iLQR_solver(object):
         self.states = []
         self.states.append([self.b0, self.r0])
 
-    def generate_initial_x(self, i_rate=BITRATE[0]/KB_IN_MB):
+    def generate_initial_x(self, i_rate=cf.bitrate[0]/KB_IN_MB):
         self.set_initial_rates(i_rate/KB_IN_MB)
         for r_idx in range(len(self.rates)):
             x = self.states[r_idx]
@@ -174,7 +175,7 @@ class iLQR_solver(object):
 
         if step_i == self.n_step-1:
             # Shape 3*1
-            self.ct = np.array([[-20*self.w3*np.e**ce_power-20*self.w4*np.e**ce_power_terminate, self.w2*2*np.log(r/u)/r, self.w1*-1/u + self.w2*2*np.log(u/r)/u + 20*self.w3/bw*np.e**ce_power + 20*self.w4/bw*np.e**ce_power_terminate - 50*self.barrier_1*np.e**ce_power_1 + 50*self.barrier_2*np.e**ce_power_2]]).T
+            self.ct = np.array([[-20*self.w3*np.e**ce_power-20*self.w4*np.e**ce_power_terminate, self.w2*2*np.log(r/u)/r, self.w1*-1/u + self.w2*2*np.log(u/r)/u + 20*self.w3*np.e**ce_power/bw + 20*self.w4*np.e**ce_power_terminate/bw - 50*self.barrier_1*np.e**ce_power_1 + 50*self.barrier_2*np.e**ce_power_2]]).T
 
             # Shape 3*3
             self.CT = np.array([[400*self.w3*np.e**ce_power+400*self.w4*np.e**ce_power_terminate, 0, -400*self.w3/bw*np.e**ce_power-400*self.w4/bw*np.e**ce_power_terminate],
@@ -322,12 +323,18 @@ class iLQR_solver(object):
         return self.rates
 
     def translate_to_rate_idx(self):
+        print("x0 is: ", self.r0)
+        print("Rates are: ", self.rates)
+        print("<=============>")       
         first_action = self.rates[0]
-        # distance = [np.abs(first_action-br/KB_IN_MB) for br in BITRATE]
+        # Distance 
+        # distance = [np.abs(first_action-br/KB_IN_MB) for br in cf.bitrate]
         # rate_idx = distance.index(min(distance))
+
+        # Lower
         rate_idx = 0
-        for j in reversed(range(len(BITRATE))):
-            if BITRATE[j]/KB_IN_MB <= first_action:
+        for j in reversed(range(len(cf.bitrate))):
+            if cf.bitrate[j]/KB_IN_MB <= first_action:
                 rate_idx = j
                 break
         if iLQR_SHOW:
