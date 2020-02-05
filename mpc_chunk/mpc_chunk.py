@@ -8,7 +8,7 @@ import mpc_solver_chunk as mpc
 import math
 
 IF_NEW = 0
-IF_ALL_TESTING = 0
+IF_ALL_TESTING = 1
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 # BITRATE = [300.0, 6000.0]
@@ -128,7 +128,7 @@ def t_main():
 
 	if not os.path.isdir(ALL_TESTING_DIR):
 		os.makedirs(ALL_TESTING_DIR)
-	all_testing_log = open(ALL_TESTING_FILE, 'wb')
+	all_testing_log = open(ALL_TESTING_FILE, 'w')
 
 	if IF_NEW:
 		cooked_times, cooked_bws, cooked_names = load.new_loadBandwidth(DATA_DIR)
@@ -151,9 +151,9 @@ def t_main():
 		server = live_server.Live_Server(seg_duration=SEG_DURATION, chunk_duration=CHUNK_DURATION, 
 											start_up_th=SERVER_START_UP_TH, randomSeed=RANDOM_SEED)
 		initial_delay = server.get_time() - player.get_playing_time()	# This initial delay, cannot be reduced, all latency is calculated based on this
-		print initial_delay, cooked_name
+		print(initial_delay, cooked_name)
 		log_path = LOG_FILE + '_' + cooked_name
-		log_file = open(log_path, 'wb')
+		log_file = open(log_path, 'w')
 
 		init = 1
 		starting_time = server.get_time()	# Server starting time
@@ -167,7 +167,7 @@ def t_main():
 
 		last_bit_rate = -1
 		for i in range(TEST_DURATION):
-			print "Current index: ", i
+			print("Current index: ", i)
 			if init: 
 				if CHUNK_IN_SEG == 5:
 					ratio = np.random.uniform(RATIO_LOW_5, RATIO_HIGH_5)
@@ -342,9 +342,9 @@ def main():
 										start_up_th=SERVER_START_UP_TH, randomSeed=RANDOM_SEED)
 
 	initial_delay = server.get_time() - player.get_playing_time()	# This initial delay, cannot be reduced, all latency is calculated based on this
-	print initial_delay
+	print(initial_delay)
 	log_path = LOG_FILE + '_' + TRACE_NAME
-	log_file = open(log_path, 'wb')
+	log_file = open(log_path, 'w')
 
 	init = 1
 	starting_time = server.get_time()	# Server starting time
@@ -354,7 +354,7 @@ def main():
 	last_bit_rate = -1
 
 	for i in range(TEST_DURATION):
-		print "Current index: ", i
+		print("Current index: ", i)
 		if init: 
 			if CHUNK_IN_SEG == 5:
 				ratio = np.random.uniform(RATIO_LOW_5, RATIO_HIGH_5)
@@ -369,7 +369,7 @@ def main():
 		bit_rate_seq, opt_reward = mpc.mpc_find_action_chunk([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
 								 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, [], ratio])
 		bit_rate = bit_rate_seq[0]
-		print "Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward
+		print("Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward)
 		# bit_rate = upper_actions[i]		# Get optimal actions
 		action_reward = 0.0				# Total reward is for all chunks within on segment
 		take_action = 1
@@ -412,7 +412,7 @@ def main():
 			# Disable sync for current situation
 			if sync:
 				if not IF_NEW:
-					print "Should not happen!"
+					print("Should not happen!")
 					break	# No resync here
 				# To sync player, enter start up phase, buffer becomes zero
 				sync_time, missing_count = server.sync_encoding_buffer()

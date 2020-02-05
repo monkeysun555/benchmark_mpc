@@ -8,7 +8,7 @@ import mpc_solver_seg as mpc
 import math 
 
 IF_NEW = 0
-IF_ALL_TESTING = 0		# IF THIS IS 1, IF_NEW MUST BE 1
+IF_ALL_TESTING = 1		# IF THIS IS 1, IF_NEW MUST BE 1
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 # BITRATE = [300.0, 6000.0]
@@ -125,7 +125,7 @@ def t_main():
 		os.makedirs(LOG_FILE_DIR)
 	if not os.path.isdir(ALL_TESTING_DIR):
 		os.makedirs(ALL_TESTING_DIR)
-	all_testing_log = open(ALL_TESTING_FILE, 'wb')
+	all_testing_log = open(ALL_TESTING_FILE, 'w')
 
 	if IF_NEW:
 		cooked_times, cooked_bws, cooked_names = load.new_loadBandwidth(DATA_DIR)
@@ -149,9 +149,9 @@ def t_main():
 											start_up_th=SERVER_START_UP_TH, randomSeed=RANDOM_SEED)
 
 		initial_delay = server.get_time() - player.get_playing_time()	# This initial delay, cannot be reduced, all latency is calculated based on this
-		print initial_delay, cooked_name
+		print(initial_delay, cooked_name)
 		log_path = LOG_FILE + '_' + cooked_name
-		log_file = open(log_path, 'wb')
+		log_file = open(log_path, 'w')
 
 		starting_time = server.get_time()	# Server starting time
 		starting_time_idx = player.get_time_idx()
@@ -204,7 +204,7 @@ def t_main():
 			if sync:
 				# print "Should not happen!!!!!"
 				# break	# No resync here
-				print "Sync happen"
+				print("Sync happen")
 				# To sync player, enter start up phase, buffer becomes zero
 				sync_time, missing_count = server.sync_encoding_buffer()
 				player.sync_playing(sync_time)
@@ -267,7 +267,7 @@ def t_main():
 		time_duration = server.get_time() - starting_time
 		tp_record, time_record = new_record_tp(player.get_throughput_trace(), player.get_time_trace(), starting_time_idx, time_duration + buffer_length) 
 		# print(starting_time_idx, TRACE_NAME, len(player.get_throughput_trace()), player.get_time_idx(), len(tp_record), np.sum(r_batch))
-		print "Entire reward is:", np.sum(r_batch)
+		print("Entire reward is:", np.sum(r_batch))
 		log_file.write('\t'.join(str(tp) for tp in tp_record))
 		log_file.write('\n')
 		log_file.write('\t'.join(str(time) for time in time_record))
@@ -312,9 +312,9 @@ def main():
 										start_up_th=SERVER_START_UP_TH, randomSeed=RANDOM_SEED)
 
 	initial_delay = server.get_time() - player.get_playing_time()	# This initial delay, cannot be reduced, all latency is calculated based on this
-	print initial_delay
+	print(initial_delay)
 	log_path = LOG_FILE + '_' + TRACE_NAME
-	log_file = open(log_path, 'wb')
+	log_file = open(log_path, 'w')
 
 	starting_time = server.get_time()	# Server starting time
 	starting_time_idx = player.get_time_idx()
@@ -323,18 +323,18 @@ def main():
 	last_bit_rate = -1
 
 	for i in range(TEST_DURATION):
-		print "Current index: ", i
+		print("Current index: ", i)
 		mpc_tp_pred = mpc.predict_mpc_tp(mpc_tp_rec)
 		bit_rate_seq, opt_reward = mpc.mpc_find_action_seg([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
 								 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, []])
 		bit_rate = bit_rate_seq[0]
-		print "Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward
+		print("Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward)
 		# last_bit_rate = bit_rate
 		# bit_rate = upper_actions[i]		# Get optimal actions
 		# action_reward = 0.0				# Total reward is for all chunks within on segment
 
 		download_seg_info = server.get_next_delivery()
-		print "seg info is " + str(download_seg_info)
+		print("seg info is " + str(download_seg_info))
 		download_seg_idx = download_seg_info[0]
 		download_seg_size = download_seg_info[1][bit_rate]
 		server_wait_time = 0.0
@@ -363,7 +363,7 @@ def main():
 		# Disable sync for current situation
 		if sync:
 			if not IF_NEW:
-				print "Should not happen!!!!!"
+				print("Should not happen!!!!!")
 				break	# No resync here
 			# To sync player, enter start up phase, buffer becomes zero
 			sync_time, missing_count = server.sync_encoding_buffer()
@@ -407,7 +407,7 @@ def main():
 		server.generate_next_delivery()			
 		if sync and not IF_NEW:
 			# Process sync
-			print "Should not happen!!!!!!"
+			print("Should not happen!!!!!!")
 			pass
 		else:
 			# print(action_reward)
@@ -433,7 +433,7 @@ def main():
 	else:
 		tp_record, time_record = new_record_tp(player.get_throughput_trace(), player.get_time_trace(), starting_time_idx, time_duration + buffer_length) 
 	# print(starting_time_idx, TRACE_NAME, len(player.get_throughput_trace()), player.get_time_idx(), len(tp_record), np.sum(r_batch))
-	print "Entire reward is:", np.sum(r_batch)
+	print("Entire reward is:", np.sum(r_batch))
 	log_file.write('\t'.join(str(tp) for tp in tp_record))
 	log_file.write('\n')
 	log_file.write('\t'.join(str(time) for time in time_record))
