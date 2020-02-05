@@ -22,11 +22,13 @@ class iLQR_solver(object):
     # And f2 = b - u/bw - rtt + delta
 
     def __init__(self):
+        # For new traces
         self.w1 = 1.5
         self.w2 = 1
-        self.w3 = 1 
-        self.w4 = 1
+        self.w3 = 6 
+        self.w4 = 3
         self.w5 = 1
+
         self.barrier_1 = 1
         self.barrier_2 = 1
         self.delta = 0.2  # 0.2s
@@ -46,7 +48,7 @@ class iLQR_solver(object):
     def set_x0(self, buffer_len, rate=BITRATE[0]):
         self.b0 = np.round(buffer_len/MS_IN_S, 2)
         self.r0 = np.round(rate/KB_IN_MB, 2)
-        self.target_buffer = max(min((CHUNK_IN_SEG)*self.delta, self.target_buffer), (CHUNK_IN_SEG-2)*self.delta)
+        self.target_buffer = max(min((CHUNK_IN_SEG)*self.delta, self.target_buffer), (CHUNK_IN_SEG-3)*self.delta)
         # self.target_buffer = max(self.target_buffer, (CHUNK_IN_SEG-2)*self.delta)
         if iLQR_SHOW:
             print("Initial X0 is: ", self.b0, self.r0)

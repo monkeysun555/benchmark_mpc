@@ -216,9 +216,10 @@ def t_main():
 			log_bit_rate = np.log(BITRATE[bit_rate] / BITRATE[0])
 			if last_bit_rate == -1:
 				log_last_bit_rate = log_bit_rate
+				c_batch.append(0.0)
 			else:
 				log_last_bit_rate = np.log(BITRATE[last_bit_rate] / BITRATE[0])
-			c_batch.append(np.abs(BITRATE[bit_rate] - BITRATE[last_bit_rate]))
+				c_batch.append(np.abs(BITRATE[bit_rate] - BITRATE[last_bit_rate]))
 			last_bit_rate = bit_rate
 			# print(log_bit_rate, log_last_bit_rate)
 			reward = ACTION_REWARD * log_bit_rate  \

@@ -7,7 +7,7 @@ import load
 import mpc_solver_seg as mpc
 import math 
 import iLQR
-IF_NEW = 1
+IF_NEW = 0
 IF_ALL_TESTING = 1		# IF THIS IS 1, IF_NEW MUST BE 1
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
@@ -179,7 +179,7 @@ def t_main():
 			# 						 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, []])
 			# bit_rate = bit_rate_seq[0]
 			# Method 2: iLQR 
-			if player.get_buffer_length() == 0:
+			if player.get_buffer_length() == 0 or i == 0 or i == 1:
 				bit_rate = 0
 			else:
 				latency = server.get_time() - player.get_playing_time()
@@ -243,9 +243,10 @@ def t_main():
 			log_bit_rate = np.log(BITRATE[bit_rate] / BITRATE[0])
 			if last_bit_rate == -1:
 				log_last_bit_rate = log_bit_rate
+				c_batch.append(0.0)
 			else:
 				log_last_bit_rate = np.log(BITRATE[last_bit_rate] / BITRATE[0])
-			c_batch.append(np.abs(BITRATE[bit_rate] - BITRATE[last_bit_rate]))
+				c_batch.append(np.abs(BITRATE[bit_rate] - BITRATE[last_bit_rate]))
 			last_bit_rate = bit_rate
 			# print(log_bit_rate, log_last_bit_rate)
 			reward = ACTION_REWARD * log_bit_rate  \

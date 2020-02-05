@@ -182,7 +182,10 @@ def t_main():
 			bit_rate_seq, opt_reward = mpc.mpc_find_action_chunk([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
 									 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, [], ratio])
 			bit_rate = bit_rate_seq[0]
-			c_batch.append(np.abs(BITRATE[bit_rate] - BITRATE[last_bit_rate]))
+			if last_bit_rate == -1:
+				c_batch.append(0.0)
+			else:
+				c_batch.append(np.abs(BITRATE[bit_rate] - BITRATE[last_bit_rate]))
 			# print "Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward
 			# bit_rate = upper_actions[i]		# Get optimal actions
 			action_reward = 0.0				# Total reward is for all chunks within on segment

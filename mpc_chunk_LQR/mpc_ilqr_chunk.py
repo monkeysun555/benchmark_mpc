@@ -9,7 +9,7 @@ import math
 import new_iLQR as iLQR
 # import iLQR
 
-IF_NEW = 1
+IF_NEW = 0
 IF_ALL_TESTING = 1
 COMPARE_ILQR_VERSION = 0
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
@@ -192,7 +192,7 @@ def t_main():
 			# print("Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward)
 
 			# Method 2: iLQR
-			if player.get_buffer_length() == 0:
+			if player.get_buffer_length() == 0 or i == 0 or i == 1:
 				bit_rate = 0
 			else:
 				latency = server.get_time() - player.get_playing_time()
@@ -228,7 +228,10 @@ def t_main():
 						if iLQR_solver.checking():
 							bit_rate = iLQR_solver.nan_index(mpc_tp_pred[0]/KB_IN_MB)
 
-			c_batch.append(np.abs(BITRATE[bit_rate] - BITRATE[last_bit_rate]))
+			if last_bit_rate == -1:
+				c_batch.append(0.0)
+			else:
+				c_batch.append(np.abs(BITRATE[bit_rate] - BITRATE[last_bit_rate]))
 			# bit_rate = upper_actions[i]		# Get optimal actions
 			action_reward = 0.0				# Total reward is for all chunks within on segment
 			take_action = 1
