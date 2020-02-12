@@ -1,0 +1,1 @@
+100+-34ms_loss0.5_1.txt	74.430+-10ms_loss0.5_0_1.txt	-14.2750+-17ms_loss3_1_1.txt	-18.9770+-24ms_loss0.5_0_2.txt	-17.8885+-29ms_loss3_1.txt	44.5550+-17ms_loss0.5_0_2.txt	-15.3130+-10ms_loss3_2_2.txt	43.4570+-24ms_loss0.5_2_1.txt	-14.070+-24ms_loss3_0_1.txt	-25.3830+-10ms_loss0.5_2_2.txt	278.85

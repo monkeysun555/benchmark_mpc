@@ -12,8 +12,8 @@ from multiprocessing import Lock, Process, Manager
 IF_NEW = 0
 COMPARE_ILQR_VERSION = 0
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
-BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
-# BITRATE = [300.0, 6000.0]
+# BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
+BITRATE = [300.0, 6000.0]
 
 RANDOM_SEED = 13
 RAND_RANGE = 1000
@@ -48,6 +48,10 @@ TOTAL_PATH = './subopt_curve/plotall_data.txt'
 TYPES = [1, 2, 3]
 BUFFERS = [2000.0, 3000.0, 4000.0]
 LH_STEPS = [1, 2, 3, 5, 10, 100]
+
+# TYPES = [1]
+# BUFFERS = [4000.0]
+# LH_STEPS = [1]
 
 # UNNORMAL_PLAYING_PENALTY = 1.0 * CHUNK_FRAG_RATIO
 # FAST_PLAYING = 1.1		# For 1
@@ -156,10 +160,15 @@ def find_subopt(temp_type, server_start_up, curr_dir):
 		MISSING_PENALTY = 6.0 * CHUNK_SEG_RATIO 			# not included
 
 	all_testing_log = open(curr_dir + 'average_reward.txt', 'w')
+
 	for lh in LH_STEPS:
+		if temp_type == 3 and lh == 1:
+			continue
+
+
 		lh_rewards = []
 		# lh_rewards.append('step: ' + str(lh_l))
-
+		detailed_info_log = open(curr_dir + 'lh_' + str(lh) + '.txt', 'w')
 
 		if IF_NEW:
 			cooked_times, cooked_bws, cooked_names = load.new_loadBandwidth(DATA_DIR)
@@ -170,6 +179,9 @@ def find_subopt(temp_type, server_start_up, curr_dir):
 		iLQR_solver.set_step(lh, temp_type)
 
 		for i in range(len(cooked_times)):
+			opt_get = 0
+			opt_actions = []
+			opt_offset = 2
 			cooked_time = cooked_times[i]
 			cooked_bw = cooked_bws[i]
 			cooked_name = cooked_names[i]
@@ -216,7 +228,7 @@ def find_subopt(temp_type, server_start_up, curr_dir):
 					init = 0
 
 				# mpc_tp_pred = mpc.predict_mpc_tp(mpc_tp_rec)
-				mpc_tp_pred = get_bw_trace(cooked_bw,i, lh)
+				mpc_tp_pred = get_bw_trace(cooked_bw, i, lh)
 
 				buffer_his.append(player.get_buffer_length()/MS_IN_S)
 				if len(buffer_his) >= BUFFER_AVE_LEN:
@@ -229,41 +241,66 @@ def find_subopt(temp_type, server_start_up, curr_dir):
 
 				# Method 2: iLQR
 				if player.get_buffer_length() == 0 or i == 0 or i == 1:
-					bit_rate = 0
+					bit_rate = 0.3
 				else:
-					latency = server.get_time() - player.get_playing_time()
-					iLQR_solver.set_target_buff(np.mean(buffer_his))
-					iLQR_solver.set_bu(latency)
-					iLQR_solver.set_predicted_bw_rtt(mpc_tp_pred)
-					if COMPARE_ILQR_VERSION == 1:
-						ilqr_rates = []
-						for iLQR_v in range(4):
+					if not opt_get:
+						latency = server.get_time() - player.get_playing_time()
+						iLQR_solver.set_target_buff(np.mean(buffer_his))
+						iLQR_solver.set_bu(latency)
+						iLQR_solver.set_predicted_bw_rtt(mpc_tp_pred)
+						if COMPARE_ILQR_VERSION == 1:
+							ilqr_rates = []
+							for iLQR_v in range(4):
+								if last_bit_rate == -1:
+									iLQR_solver.set_x0(player.get_buffer_length())
+								else:
+									iLQR_solver.set_x0(player.get_buffer_length(), last_bit_rate*KB_IN_MB)
+									if iLQR_v == 0:
+										iLQR_solver.generate_initial_x(min(mpc_tp_pred))
+									elif iLQR_v == 1:
+										iLQR_solver.generate_initial_x(mpc_tp_pred[0])
+									elif iLQR_v == 2:
+										iLQR_solver.generate_initial_x(np.mean(mpc_tp_pred))
+									elif iLQR_v == 3:
+										iLQR_solver.generate_initial_x_trace(mpc_tp_pred)
+									bit_rate = iLQR_solver.iterate_LQR()
+									ilqr_rates.append(iLQR_solver.get_rates())
+							for ilqr_res in ilqr_rates:
+								print(ilqr_res)
+						else:
 							if last_bit_rate == -1:
 								iLQR_solver.set_x0(player.get_buffer_length())
 							else:
-								iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
-								if iLQR_v == 0:
-									iLQR_solver.generate_initial_x(min(mpc_tp_pred))
-								elif iLQR_v == 1:
-									iLQR_solver.generate_initial_x(mpc_tp_pred[0])
-								elif iLQR_v == 2:
-									iLQR_solver.generate_initial_x(np.mean(mpc_tp_pred))
-								elif iLQR_v == 3:
-									iLQR_solver.generate_initial_x_trace(mpc_tp_pred)
+								if lh == 100:
+									iLQR_solver.set_x0(player.get_buffer_length(), mpc_tp_pred[0])
+								else:
+									iLQR_solver.set_x0(player.get_buffer_length(), last_bit_rate*KB_IN_MB)
+								# iLQR_solver.generate_initial_x(mpc_tp_pred[0])
+								iLQR_solver.generate_initial_x_trace(mpc_tp_pred)
+								if lh >= 10:
+									iLQR_solver.set_target_buff(CHUNK_DURATION/MS_IN_S)
 								bit_rate = iLQR_solver.iterate_LQR()
-								ilqr_rates.append(iLQR_solver.get_rates())
-						for ilqr_res in ilqr_rates:
-							print(ilqr_res)
+								if iLQR_solver.checking():
+									# bit_rate = iLQR_solver.nan_index(mpc_tp_pred[0]/KB_IN_MB)
+									bit_rate = mpc_tp_pred[0]/KB_IN_MB
+							
+							if lh == 100:
+								opt_get = True
+								opt_actions = iLQR_solver.get_rates()
+								print("100 OPT ACTIONS: ", opt_actions)
+								assert len(opt_actions) == 100
+								no_none = True
+								for act in opt_actions:
+									if math.isnan(act):
+										no_none = False
+								if not no_none:
+									opt_get = False
+									opt_offset += 1
 					else:
-						if last_bit_rate == -1:
-							iLQR_solver.set_x0(player.get_buffer_length())
-						else:
-							iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
-							iLQR_solver.generate_initial_x(mpc_tp_pred[0])
-							bit_rate = iLQR_solver.iterate_LQR()
-							if iLQR_solver.checking():
-								bit_rate = iLQR_solver.nan_index(mpc_tp_pred[0]/KB_IN_MB)
+						bit_rate = opt_actions[i-opt_offset]
 
+				bit_rate = max(BITRATE[0]/KB_IN_MB, min(BITRATE[-1]/KB_IN_MB, bit_rate ))
+				print("Bitrate is: ", bit_rate)
 				# if last_bit_rate == -1:
 				# 	c_batch.append(0.0)
 				# else:
@@ -280,7 +317,8 @@ def find_subopt(temp_type, server_start_up, curr_dir):
 					download_seg_idx = download_chunk_info[0]
 					download_chunk_idx = download_chunk_info[1]
 					download_chunk_end_idx = download_chunk_info[2]
-					download_chunk_size = download_chunk_info[3][bit_rate]		# Might be several chunks
+					# download_chunk_size = download_chunk_info[3][bit_rate]		# Might be several chunks
+					download_chunk_size = bit_rate * KB_IN_MB * CHUNK_SEG_RATIO		# Might be several chunks
 					chunk_number = download_chunk_end_idx - download_chunk_idx + 1
 					assert chunk_number == 1
 					server_wait_time = 0.0
@@ -304,7 +342,7 @@ def find_subopt(temp_type, server_start_up, curr_dir):
 						assert np.round(player.buffer, 3) == 0.0
 						# Pay attention here, how time out influence next reward, the smoothness
 						# Bit_rate will recalculated later, this is for reward calculation
-						bit_rate = 0
+						bit_rate = 0.3		# Continuous
 						sync = 1
 					# Disable sync for current situation
 					if sync:
@@ -316,11 +354,11 @@ def find_subopt(temp_type, server_start_up, curr_dir):
 					latency = server.get_time() - player.get_playing_time()
 					player_state = player.get_state()
 
-					log_bit_rate = np.log(BITRATE[bit_rate] / BITRATE[0])
+					log_bit_rate = np.log(bit_rate*KB_IN_MB / BITRATE[0])
 					if last_bit_rate == -1:
 						log_last_bit_rate = log_bit_rate
 					else:
-						log_last_bit_rate = np.log(BITRATE[last_bit_rate] / BITRATE[0])
+						log_last_bit_rate = np.log(last_bit_rate * KB_IN_MB / BITRATE[0])
 					last_bit_rate = bit_rate	# Do no move this term. This is for chunk continuous calcualtion
 
 					reward = ACTION_REWARD * log_bit_rate * chunk_number \
@@ -329,7 +367,10 @@ def find_subopt(temp_type, server_start_up, curr_dir):
 							- LONG_DELAY_PENALTY * lat_penalty(latency/ MS_IN_S) * chunk_number \
 							- MISSING_PENALTY * missing_count
 							# - UNNORMAL_PLAYING_PENALTY*(playing_speed-NORMAL_PLAYING)*download_duration/MS_IN_S
-					# print(reward)
+					# print(log_bit_rate)
+					# print(freezing)
+					# print(log_bit_rate - log_last_bit_rate)
+					# print("Reward is: ", reward)
 					action_reward += reward
 
 					# chech whether need to wait, using number of available segs
@@ -377,6 +418,7 @@ def find_subopt(temp_type, server_start_up, curr_dir):
 			tp_record, time_record = new_record_tp(player.get_throughput_trace(), player.get_time_trace(), starting_time_idx, time_duration + buffer_length) 
 			print("Entire reward is:", np.sum(r_batch))
 			lh_rewards.append(np.sum(r_batch))
+			detailed_info_log.write(cooked_name + '\t' + str(np.round(np.sum(r_batch) ,2)))
 			# log_file.write('\t'.join(str(tp) for tp in tp_record))
 			# log_file.write('\n')
 			# log_file.write('\t'.join(str(time) for time in time_record))
@@ -396,6 +438,7 @@ def find_subopt(temp_type, server_start_up, curr_dir):
 		all_testing_log.write('Step: ' + str(lh) + '\t')
 		all_testing_log.write(str(np.mean(lh_rewards)))
 		all_testing_log.write('\n')
+		detailed_info_log.close()
 	all_testing_log.close()
 
 def main():

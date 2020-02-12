@@ -48,12 +48,11 @@ class iLQR_solver(object):
     def set_x0(self, buffer_len, rate=BITRATE[0]):
         self.b0 = np.round(buffer_len/MS_IN_S, 2)
         self.r0 = np.round(rate/KB_IN_MB, 2)
-        print(self.target_buffer)
         self.target_buffer = max(min((CHUNK_IN_SEG)*self.delta, self.target_buffer), (CHUNK_IN_SEG-3)*self.delta)
         # self.target_buffer = max(self.target_buffer, (CHUNK_IN_SEG-2)*self.delta)
-        # if iLQR_SHOW:
-        print("Initial X0 is: ", self.b0, self.r0)
-        print("iLQR target buffer is: ", self.target_buffer)
+        if iLQR_SHOW:
+            print("Initial X0 is: ", self.b0, self.r0)
+            print("iLQR target buffer is: ", self.target_buffer)
 
     def checking(self):
         # print(self.rates[0])
@@ -103,7 +102,7 @@ class iLQR_solver(object):
             
 
     def set_initial_rates_trace(self, predict_trace):
-        self.rates = [0.95*x /KB_IN_MB for x in predict_trace]
+        self.rates = [0.99*x /KB_IN_MB for x in predict_trace]
         self.states = []
         self.states.append([self.b0, self.r0])
 
@@ -157,7 +156,7 @@ class iLQR_solver(object):
         ce_power = -20*(b-u/bw-rtt + (CHUNK_IN_SEG-1)*self.delta + 0.05)
         ce_power_1 = -50*(u-0.1)
         ce_power_2 = 50*(u-6.5)
-        ce_power_terminate = -20*(b-u/bw-rtt + CHUNK_IN_SEG*self.delta - self.target_buffer+0.05)
+        ce_power_terminate = -20*(b-u/bw-rtt + CHUNK_IN_SEG*self.delta - self.target_buffer + 0.05)
         ce_buffer = b-u/bw-rtt+CHUNK_IN_SEG*self.delta-self.target_buffer
         # Without z2 for buffer upper bound
         # self.ft = [[(np.e**f_1)/(np.e**f_1+1) + (20*(np.e**f_1)*(b-1))/((np.e**f_1+1)**2), 0, -(np.e**f_1)/(bw*(np.e**f_1+1)) + (20*(u+bw)*np.e**f_1)/((np.e**f_1+1)**2)],
@@ -325,8 +324,9 @@ class iLQR_solver(object):
                 print("Iteration ", ite_i, ", action is: ", self.rates)
                 print("<===============================================>")
 
-        r_idx = self.translate_to_rate_idx()
-        return r_idx
+        # r_idx = self.translate_to_rate_idx()
+        # return r_idx
+        return self.rates[0]
 
     def get_rates(self):
         return self.rates
