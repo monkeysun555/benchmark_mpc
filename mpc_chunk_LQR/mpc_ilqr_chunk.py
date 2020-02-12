@@ -227,7 +227,7 @@ def t_main():
 						bit_rate = iLQR_solver.iterate_LQR()
 						if iLQR_solver.checking():
 							bit_rate = iLQR_solver.nan_index(mpc_tp_pred[0]/KB_IN_MB)
-
+							print("got 1")
 			if last_bit_rate == -1:
 				c_batch.append(0.0)
 			else:

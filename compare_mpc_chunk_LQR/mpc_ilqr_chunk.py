@@ -256,7 +256,7 @@ def t_main():
 				if download_seg_idx >= TEST_DURATION:
 					break
 				real_chunk_size, download_duration, freezing, time_out, player_state = player.fetch(download_chunk_size, 
-																		download_seg_idx, download_chunk_idx, take_action, chunk_number)
+																		download_seg_idx, download_chunk_idx, take_action, chunk_number, i)
 				take_action = 0
 				current_mpc_tp += chunk_number/CHUNK_IN_SEG * real_chunk_size / download_duration
 				buffer_length = player.get_buffer_length()
