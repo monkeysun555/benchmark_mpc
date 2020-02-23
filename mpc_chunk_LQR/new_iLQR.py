@@ -1,7 +1,7 @@
 import numpy as np
 import math 
 
-LQR_DEBUG = 0
+LQR_DEBUG = 1
 iLQR_SHOW = 0
 RTT_LOW = 0.02
 SEG_DURATION = 1.0
@@ -163,7 +163,7 @@ class iLQR_solver(object):
             print("delta: ", self.delta)
             print("bu: ", self.Bu)
             print("f3 is: ", f_3)
-            input()
+            # input()
 
         # Shape 2*3
         # (b, r) = f(b', r', u) So self.ft is 2*3
@@ -271,7 +271,7 @@ class iLQR_solver(object):
                 new_u = pre_ut_list[step_i] + d_u       # New action
                 if LQR_DEBUG:
                     print("New action: ", new_u)
-                    input()
+                    input() 
 
                 # Check converge
                 if converge and not np.round(new_u[0][0], 1) == np.round(self.rates[step_i],1):
