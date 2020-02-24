@@ -1,7 +1,7 @@
 import numpy as np
 import math 
 
-LQR_DEBUG = 1
+LQR_DEBUG = 0
 iLQR_SHOW = 0
 RTT_LOW = 0.02
 SEG_DURATION = 1.0
@@ -23,10 +23,10 @@ class iLQR_solver(object):
 
     def __init__(self):
         # For new traces
-        self.w1 = 1.5
+        self.w1 = 1
         self.w2 = 1
-        self.w3 = 6 
-        self.w4 = 3
+        self.w3 = 1
+        self.w4 = 1
         self.w5 = 1
 
         self.barrier_1 = 1
@@ -41,6 +41,7 @@ class iLQR_solver(object):
         self.b0 = None
         self.r0 = None
         self.target_buffer = None
+        self.step_size = 0.2
 
     def set_target_buff(self, target):
         self.target_buffer = target
@@ -48,7 +49,7 @@ class iLQR_solver(object):
     def set_x0(self, buffer_len, rate=BITRATE[0]):
         self.b0 = np.round(buffer_len/MS_IN_S, 2)
         self.r0 = np.round(rate/KB_IN_MB, 2)
-        self.target_buffer = max(min((CHUNK_IN_SEG)*self.delta, self.target_buffer), (CHUNK_IN_SEG-3)*self.delta)
+        self.target_buffer = max(min((CHUNK_IN_SEG)*self.delta, self.target_buffer), (CHUNK_IN_SEG-2)*self.delta)
         # self.target_buffer = max(self.target_buffer, (CHUNK_IN_SEG-2)*self.delta)
         if iLQR_SHOW:
             print("Initial X0 is: ", self.b0, self.r0)
@@ -143,13 +144,14 @@ class iLQR_solver(object):
         f_2 = b-u/bw-rtt+CHUNK_IN_SEG*self.delta
         f_3 = 100*(b-u/bw-rtt + CHUNK_IN_SEG*self.delta-self.Bu)
 
-        ce_power = -20*(b-u/bw-rtt + (CHUNK_IN_SEG-1)*self.delta + 0.05)
-        ce_power_1 = -50*(u-0.1)
-        ce_power_2 = 50*(u-6.5)
-        ce_power_terminate = -20*(b-u/bw-rtt + CHUNK_IN_SEG*self.delta - self.target_buffer+0.05)
-        ce_buffer = b-u/bw-rtt+CHUNK_IN_SEG*self.delta-self.target_buffer
+        ce_power = (b-u/bw-rtt + (CHUNK_IN_SEG-1)*self.delta)
+        ce_power_1 = -50*(u-0.15)
+        ce_power_2 = 50*(u-6.15)
+        ce_power_terminate = (b-u/bw-rtt + CHUNK_IN_SEG*self.delta - self.target_buffer + 0.2)
+        
+        # ce_buffer = b-u/bw-rtt+CHUNK_IN_SEG*self.delta-self.target_buffer
         # Without z2 for buffer upper bound
-        # self.ft = [[(np.e**f_1)/(np.e**f_1+1) + (20*(np.e**f_1)*(b-1))/((np.e**f_1+1)**2), 0, -(np.e**f_1)/(bw*(np.e**f_1+1)) + (20*(u+bw)*np.e**f_1)/((np.e**f_1+1)**2)],
+        # self.ft = [[(approx_e_f1)/(approx_e_f1+1) + (20*(approx_e_f1)*(b-1))/((approx_e_f1+1)**2), 0, -(approx_e_f1)/(bw*(approx_e_f1+1)) + (20*(u+bw)*approx_e_f1)/((approx_e_f1+1)**2)],
         #          [0, 0, 1]]
 
         # With z2 for buffer upper bound
@@ -165,28 +167,104 @@ class iLQR_solver(object):
             print("f3 is: ", f_3)
             # input()
 
+        approx_e_f1 = np.round(np.e**f_1, 4)
+        approx_e_f3 = np.round(np.e**f_3, 4)
         # Shape 2*3
         # (b, r) = f(b', r', u) So self.ft is 2*3
-        self.ft = np.array([[(100*np.e**f_1/(np.e**f_1+1)**2)*(self.Bu*np.e**f_3+f_2)/(np.e**f_3+1) + ((self.Bu*100*np.e**f_3+np.e**f_3+1-100*np.e**f_3*f_2)/(np.e**f_3+1)**2)*np.e**f_1/(np.e**f_1+1)-100*self.delta*np.e**f_1/(np.e**f_1+1)**2,
-                    0, -100*np.e**f_1*(self.Bu*np.e**f_3+f_2)/(bw*(np.e**f_1+1)**2*(np.e**f_3+1)) + (np.e**f_1/(np.e**f_1+1))*(-100*self.Bu*np.e**f_3-np.e**f_3-1+100*np.e**f_3*f_2)/(bw*(np.e**f_3+1)**2) + (100*self.delta*np.e**f_1)/(bw*(np.e**f_1+1)**2)],
+        self.ft = np.array([[(100*approx_e_f1/(approx_e_f1+1)**2)*(self.Bu*approx_e_f3+f_2)/(approx_e_f3+1) + ((self.Bu*100*approx_e_f3+approx_e_f3+1-100*approx_e_f3*f_2)/(approx_e_f3+1)**2)*approx_e_f1/(approx_e_f1+1)-100*self.delta*approx_e_f1/(approx_e_f1+1)**2,
+                    0, -100*approx_e_f1*(self.Bu*approx_e_f3+f_2)/(bw*(approx_e_f1+1)**2*(approx_e_f3+1)) + (approx_e_f1/(approx_e_f1+1))*(-100*self.Bu*approx_e_f3-approx_e_f3-1+100*approx_e_f3*f_2)/(bw*(approx_e_f3+1)**2) + (100*self.delta*approx_e_f1)/(bw*(approx_e_f1+1)**2)],
                    [0, 0, 1]])
 
-        if step_i == self.n_step-1:
-            # Shape 3*1
-            self.ct = np.array([[-20*self.w3*np.e**ce_power-20*self.w4*np.e**ce_power_terminate, self.w2*2*np.log(r/u)/r, self.w1*-1/u + self.w2*2*np.log(u/r)/u + 20*self.w3/bw*np.e**ce_power + 20*self.w4/bw*np.e**ce_power_terminate - 50*self.barrier_1*np.e**ce_power_1 + 50*self.barrier_2*np.e**ce_power_2]]).T
 
-            # Shape 3*3
-            self.CT = np.array([[400*self.w3*np.e**ce_power+400*self.w4*np.e**ce_power_terminate, 0, -400*self.w3/bw*np.e**ce_power-400*self.w4/bw*np.e**ce_power_terminate],
-                       [0, self.w2*2/(r**2)*(1-np.log(r/u)), -2*self.w2/(u*r)],
-                       [-400*self.w3/bw*np.e**ce_power-400*self.w4/bw*np.e**ce_power_terminate, self.w2*-2/(u*r), self.w1/u**2 + self.w2*2/u**2*(1-np.log(u/r)) + self.w3*400*np.e**ce_power/bw**2 + self.w4*400*np.e**ce_power_terminate/bw**2 + 2500.0*self.barrier_1*np.e**ce_power_1 + 2500*self.barrier_2*np.e**ce_power_2]]).T
-        else:
-        # Shape 3*1
-            self.ct = np.array([[-20*self.w3*np.e**ce_power, self.w2*2*np.log(r/u)/r, self.w1*-1/u + self.w2*2*np.log(u/r)/u + 20*self.w3*np.e**ce_power/bw - 50*self.barrier_1*np.e**ce_power_1 + 50*self.barrier_2*np.e**ce_power_2]]).T
+        approx_power0 = 4*(ce_power+1)
+        approx_power1 = 15*ce_power+3.2
+        approx_power2 = 20*(ce_power+0.2)
+        approx_power3 = 10*(ce_power+3)
+        approx_power4 = 5*(ce_power+1.5)
+        action_ratio = -1/(bw)
 
-            # Shape 3*3
-            self.CT = np.array([[400*self.w3*np.e**ce_power, 0, -400*self.w3*np.e**ce_power/bw],
-                   [0, self.w2*2/(r**2)*(1-np.log(r/u)), -2*self.w2/(u*r)],
-                   [-400*self.w3*np.e**ce_power/bw, self.w2*-2/(u*r), self.w1/u**2 + self.w2*2/u**2*(1-np.log(u/r)) + self.w3*400*np.e**ce_power/bw**2 + 2500.0*self.barrier_1*np.e**ce_power_1 + 2500*self.barrier_2*np.e**ce_power_2]]).T
+        approx_e_0 = np.e**approx_power0
+        approx_e_1 = np.e**approx_power1
+        approx_e_2 = np.e**approx_power2
+        approx_e_3 = np.e**approx_power3
+        approx_e_4 = np.e**approx_power4
+
+        delta_b = np.round(self.w3*(-1/2*(4*approx_e_0*(1+approx_e_1)-2*15*approx_e_1*approx_e_0)/(1+approx_e_1)**3 +\
+                         10*-1*(1+approx_e_2)**-2*20*approx_e_2 + \
+                         28*-1*(1+approx_e_3)**-2*10*approx_e_3 + \
+                         20*-1*(1+approx_e_4)**-2*5*approx_e_4), 4)
+        delta_u = np.round(action_ratio*delta_b, 4)
+
+        delta_bb = np.round(self.w3*(-1/2*((16*approx_e_0*(1+approx_e_1) + \
+                            4*approx_e_0*15*approx_e_1 - \
+                            30*(15*approx_e_1*approx_e_0 + 4*approx_e_0*approx_e_1))*(1+approx_e_1)- \
+                            3*15*approx_e_1*(4*approx_e_0*(1+approx_e_1)-2*15*approx_e_1*approx_e_0))/\
+                            (1+approx_e_1)**4 - \
+                            200*(1+approx_e_2)**-2*20*approx_e_2*(-2*(1+approx_e_2)**-1*approx_e_2+1) - \
+                            280*(1+approx_e_3)**-2*10*approx_e_3*(-2*(1+approx_e_3)**-1*approx_e_3+1) - \
+                            100*(1+approx_e_4)**-2*5*approx_e_4*(-2*(1+approx_e_4)**-1*approx_e_4+1)), 4)
+        delta_bu = np.round(action_ratio*delta_bb, 4)
+        delta_uu = np.round(action_ratio**2*delta_bb, 4)
+
+
+        # if step_i == self.n_step-1:
+        #     # Shape 3*1
+        #     approx_terminate = 10*ce_power_terminate
+        #     approx_e_terminate = np.e**approx_terminate
+        #     delta_b_terminate = np.round(self.w4*0.5*-1*(1+approx_e_terminate)**-2*10*approx_e_terminate, 4)
+        #     delta_u_terminate = np.round(action_ratio*delta_b_terminate, 4)
+        #     delta_bb_terminate = np.round(self.w4*-5*(1+approx_e_terminate)**-2*10*approx_e_terminate*\
+        #                                     (-2*(1+approx_e_terminate)**-1*approx_e_terminate+1), 4)
+        #     delta_bu_terminate = np.round(delta_bb_terminate*delta_bb_terminate, 4)
+        #     delta_uu_terminate = np.round(delta_bb_terminate**2*delta_bb_terminate, 4)
+
+        #     self.ct = np.array([[delta_b + delta_b_terminate, self.w2*2*np.log(r/u)/r, \
+        #                  self.w1*-1/u + self.w2*2*np.log(u/r)/u -\
+        #                  50*self.barrier_1*np.e**ce_power_1 +\
+        #                  50*self.barrier_2*np.e**ce_power_2 + \
+        #                  delta_u + delta_u_terminate]]).T
+
+        #     # Shape 3*3
+        #     self.CT = np.array([[delta_bb + delta_bb_terminate, 0, delta_bu + delta_bu_terminate],
+        #                         [0, self.w2*2*(1-np.log(r/u))/r**2, -2*self.w2/(u*r)],
+        #                         [delta_bu + delta_bu_terminate, self.w2*-2/(u*r), \
+        #                          self.w1/u**2 + self.w2*2*(1-np.log(u/r))/u**2 +\
+        #                          2500.0*self.barrier_1*np.e**ce_power_1 + \
+        #                          2500.0*self.barrier_2*np.e**ce_power_2]] +
+        #                          delta_uu + delta_uu_terminate).T
+        # else:
+        self.ct = np.array([[delta_b, self.w2*2*np.log(r/u)/r, \
+                     self.w1*-1/u + self.w2*2*np.log(u/r)/u -\
+                     50*self.barrier_1*np.e**ce_power_1 +\
+                     50*self.barrier_2*np.e**ce_power_2 + delta_u]]).T
+
+        if LQR_DEBUG:
+            print("Update matrix in step: ", step_i)
+            print("1::::: ", self.w1*-1/u)
+            print("2:::::: ", self.w2*2*np.log(u/r)/u)
+            print("3:::::: ", 50*self.barrier_1*np.e**ce_power_1)
+            print("4:::::: ", 50*self.barrier_2*np.e**ce_power_2)
+            print("5:::::: ", delta_u)
+            print("<-----><------>")
+
+        # Shape 3*3
+        self.CT = np.array([[delta_bb, 0, delta_bu],
+                            [0, self.w2*2*(1-np.log(r/u))/r**2, -2*self.w2/(u*r)],
+                            [delta_bu, self.w2*-2/(u*r), \
+                             self.w1/u**2 + self.w2*2*(1-np.log(u/r))/u**2 +\
+                             2500.0*self.barrier_1*np.e**ce_power_1 + \
+                             2500.0*self.barrier_2*np.e**ce_power_2 + delta_uu]]).T
+        if LQR_DEBUG:
+            print("Update matrix in step: ", step_i)
+            print("CT matrix: ", self.CT)
+            print("ct matrix: ", self.ct)
+            print("ft matrix: ", self.ft)
+            print("uu values:")
+            print("1st: ", self.w1/u**2)
+            print("2nd: ", self.w2*2*(1-np.log(u/r))/u**2)
+            print("3rd: ", 2500.0*self.barrier_1*np.e**ce_power_1)
+            print("4th: ", 2500.0*self.barrier_2*np.e**ce_power_2)
+            print("5th: ", delta_uu)
         
         # Add buffer cost
         # self.ct = np.array([[-20*self.w3*np.e**ce_power + 2*self.w5*ce_buffer, self.w2*2*np.log(r/u)/r, -2*ce_buffer/bw + self.w1*-1/u + self.w2*2*np.log(u/r)/u + 20*self.w3*np.e**ce_power/bw - 50*self.barrier_1*np.e**ce_power_1 + 50*self.barrier_2*np.e**ce_power_2]]).T
@@ -243,14 +321,14 @@ class iLQR_solver(object):
 
                 KT = np.dot(-1, np.dot(Q_uu**-1, Q_ux)).reshape((1,2))          #1*2
                 kt = np.dot(-1, np.dot(Q_uu**-1, q_u))                          #1*1                
-                d_u = np.dot(KT, xt) + kt                                       #1*1
+                # d_u = self.step_size*(np.dot(KT, xt) + kt)                                  #1*1
                 if LQR_DEBUG:
                     print("KT: ", KT)
                     print("kt: ", kt)
                     print("du: ", d_u)
                 VT = Q_xx + np.dot(Q_xu, KT) + np.dot(KT.T, Q_ux) + np.dot(np.dot(KT.T, Q_uu), KT)  #2*2
                 vt = q_x + np.dot(Q_xu, kt).reshape((2,1)) + np.dot(KT.T, q_u).reshape((2,1)) + np.dot(np.dot(KT.T, Q_uu), kt).reshape((2,1))    #2*1
-                d_ut_list[step_i] = d_u
+                # d_ut_list[step_i] = d_u
                 KT_list[step_i] = KT
                 kt_list[step_i] = kt
                 VT_list[step_i] = VT
@@ -268,7 +346,7 @@ class iLQR_solver(object):
                 K_T = KT_list[step_i]
                 d_u = np.dot(K_T, d_x) + k_t
 
-                new_u = pre_ut_list[step_i] + d_u       # New action
+                new_u = pre_ut_list[step_i] + self.step_size*d_u       # New action
                 if LQR_DEBUG:
                     print("New action: ", new_u)
                     input() 

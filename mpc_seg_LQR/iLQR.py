@@ -1,8 +1,8 @@
 import numpy as np
 import math
 
-LQR_DEBUG = 0
-iLQR_SHOW = 0
+LQR_DEBUG = 1
+iLQR_SHOW = 1
 RTT_LOW = 0.02
 SEG_DURATION = 1.0
 DEF_N_STEP = 5
@@ -125,14 +125,14 @@ class iLQR_solver(object):
         # With z2 for buffer upper bound
         # Shape 2*3
         if LQR_DEBUG:
-            print("f1 is: ", f_1)
+            print("f1 is: ", f_1/100)
             print("f2 is: ", f_2)
             print("b: ", b)
             print("u: ", u)
             print("rtt: ", rtt)
             print("delta: ", self.delta)
             print("bu: ", self.Bu)
-            print("f3 is: ", f_3)
+            print("f3 is: ", f_3/100)
             input()
 
         # Shape 2*3
@@ -157,7 +157,14 @@ class iLQR_solver(object):
         
         # else:
         self.ct = np.array([[-20*self.w3*np.e**ce_power, self.w2*2*np.log(r/u)/r, self.w1*-1/u + self.w2*2*np.log(u/r)/u + 20*self.w3*np.e**ce_power/bw - 50*self.barrier_1*np.e**ce_power_1 + 50*self.barrier_2*np.e**ce_power_2]]).T
-
+        if LQR_DEBUG:
+            print("Update matrix in step: ", step_i)
+            print("1::::: ", self.w1*-1/u)
+            print("2:::::: ", self.w2*2*np.log(u/r)/u)
+            print("3:::::: ", 50*self.barrier_1*np.e**ce_power_1)
+            print("4:::::: ", 50*self.barrier_2*np.e**ce_power_2)
+            print("5:::::: ", 20*self.w3*np.e**ce_power/bw)
+            print("<-----><------>")
         # Shape 3*3
         self.CT = np.array([[400*self.w3*np.e**ce_power, 0, -400*self.w3*np.e**ce_power/bw],
                        [0, self.w2*2*(1-np.log(r/u))/r**2, -2*self.w2/(u*r)],

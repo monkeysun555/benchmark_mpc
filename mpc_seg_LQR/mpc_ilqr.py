@@ -8,8 +8,6 @@ import mpc_solver_seg as mpc
 import math 
 # Traditional
 # import iLQR
-
-# Using high order approximation
 import new_iLQR as iLQR
 
 IF_NEW = 1		# New is 3G, not new (old) is 4G NYC Trace
@@ -31,7 +29,7 @@ SEG_DURATION = 1000.0
 # CHUNK_SEG_RATIO = CHUNK_DURATION/SEG_DURATION
 
 # Initial buffer length on server side
-SERVER_START_UP_TH = 2000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
+SERVER_START_UP_TH = 4000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
 # how user will start playing video (user buffer)
 USER_START_UP_TH = 2000.0
 # set a target latency, then use fast playing to compensate
@@ -195,7 +193,7 @@ def t_main():
 					iLQR_solver.set_x0(player.get_buffer_length())
 				else:
 					iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
-				iLQR_solver.generate_initial_x(min(mpc_tp_pred)/KB_IN_MB)
+				iLQR_solver.generate_initial_x(mpc_tp_pred[0]/KB_IN_MB)
 				bit_rate = iLQR_solver.iterate_LQR()
 				print("rates are: ", iLQR_solver.rates)
 				if iLQR_solver.checking():
@@ -382,7 +380,7 @@ def main():
 				iLQR_solver.set_x0(player.get_buffer_length())
 			else:
 				iLQR_solver.set_x0(player.get_buffer_length(), BITRATE[last_bit_rate])
-			iLQR_solver.generate_initial_x(min(mpc_tp_pred)/KB_IN_MB)
+			iLQR_solver.generate_initial_x(mpc_tp_pred[0]/KB_IN_MB)
 			bit_rate = iLQR_solver.iterate_LQR()
 			print("rates are: ", iLQR_solver.rates)
 			if iLQR_solver.checking():
