@@ -26,7 +26,7 @@ CHUNK_IN_SEG = SEG_DURATION/CHUNK_DURATION
 CHUNK_SEG_RATIO = CHUNK_DURATION/SEG_DURATION
 
 # Initial buffer length on server side
-SERVER_START_UP_TH = 2000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
+SERVER_START_UP_TH = 3000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
 # how user will start playing video (user buffer)
 USER_START_UP_TH = 2000.0
 # set a target latency, then use fast playing to compensate
@@ -164,7 +164,7 @@ def t_main():
 		a_batch = []
 		c_batch = []
 		l_batch = []
-
+		j_batch = []
 		last_bit_rate = -1
 		for i in range(TEST_DURATION):
 			print("Current index: ", i)
@@ -281,7 +281,7 @@ def t_main():
 					f_batch.append(seg_freezing)
 					a_batch.append(BITRATE[bit_rate])
 					l_batch.append(latency)
-
+					j_batch.append(sync)
 					log_file.write(	str(server.get_time()) + '\t' +
 								    str(BITRATE[bit_rate]) + '\t' +
 									str(buffer_length) + '\t' +
@@ -315,7 +315,7 @@ def t_main():
 		all_testing_log.write(str(np.sum(f_batch)) + '\t')
 		all_testing_log.write(str(np.mean(c_batch)) + '\t')
 		all_testing_log.write(str(np.mean(l_batch)) + '\t')
-
+		all_testing_log.write(str(np.sum(j_batch)) + '\t')
 		all_testing_log.write('\n')
 	all_testing_log.close()
 
