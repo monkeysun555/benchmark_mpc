@@ -12,6 +12,7 @@ IF_ALL_TESTING = 1
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 # BITRATE = [300.0, 6000.0]
+PRUNE = 1
 
 RANDOM_SEED = 13
 RAND_RANGE = 1000
@@ -26,7 +27,7 @@ CHUNK_IN_SEG = SEG_DURATION/CHUNK_DURATION
 CHUNK_SEG_RATIO = CHUNK_DURATION/SEG_DURATION
 
 # Initial buffer length on server side
-SERVER_START_UP_TH = 3000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
+SERVER_START_UP_TH = 4000.0											# <========= TO BE MODIFIED. TEST WITH DIFFERENT VALUES
 # how user will start playing video (user buffer)
 USER_START_UP_TH = 2000.0
 # set a target latency, then use fast playing to compensate
@@ -70,12 +71,12 @@ else:
 		LOG_FILE_DIR = './all_test_results'
 		LOG_FILE = LOG_FILE_DIR + '/MPCCHUNK_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 		ALL_TESTING_DIR = '../../benchmark_compare/all_results/'
-		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC\'_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
+		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPCp\'_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 	else:
 		LOG_FILE_DIR = './all_test_results_old'
 		LOG_FILE = LOG_FILE_DIR + '/MPCCHUNK_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 		ALL_TESTING_DIR = '../../benchmark_compare/all_results_old/'
-		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC\'_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
+		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPCp\'_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 
 def ReLU(x):
 	return x * (x > 0)
@@ -180,7 +181,7 @@ def t_main():
 
 			mpc_tp_pred = mpc.predict_mpc_tp(mpc_tp_rec)
 			bit_rate_seq, opt_reward = mpc.mpc_find_action_chunk([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
-									 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, [], ratio])
+									 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, [], ratio], pruning=PRUNE)
 			bit_rate = bit_rate_seq[0]
 			if last_bit_rate == -1:
 				c_batch.append(0.0)

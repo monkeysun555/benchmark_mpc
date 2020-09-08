@@ -7,11 +7,12 @@ import load
 import mpc_solver_seg as mpc
 import math 
 
-IF_NEW = 1
+IF_NEW = 0
 IF_ALL_TESTING = 1		# IF THIS IS 1, IF_NEW MUST BE 1
 # New bitrate setting, 6 actions, correspongding to 240p, 360p, 480p, 720p, 1080p and 1440p(2k)
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 # BITRATE = [300.0, 6000.0]
+PRUNE = 1
 
 RANDOM_SEED = 13
 RAND_RANGE = 1000
@@ -69,12 +70,12 @@ else:
 		LOG_FILE_DIR = './all_test_results'
 		LOG_FILE = LOG_FILE_DIR + '/MPCSEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 		ALL_TESTING_DIR = '../../benchmark_compare/all_results/'
-		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
+		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPCsp_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 	else:
 		LOG_FILE_DIR = './all_test_results_old'
 		LOG_FILE = LOG_FILE_DIR + '/MPCSEG_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's'
 		ALL_TESTING_DIR = '../../benchmark_compare/all_results_old/'
-		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPC_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
+		ALL_TESTING_FILE = ALL_TESTING_DIR + 'MPCsp_' + str(int(SERVER_START_UP_TH/MS_IN_S)) + 's.txt'
 
 def ReLU(x):
 	return x * (x > 0)
@@ -168,7 +169,7 @@ def t_main():
 			# print "Current index: ", i
 			mpc_tp_pred = mpc.predict_mpc_tp(mpc_tp_rec)
 			bit_rate_seq, opt_reward = mpc.mpc_find_action_seg([mpc_tp_pred, 0, player.get_real_time(), player.get_playing_time(), server.get_time(), \
-									 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, []])
+									 player.get_buffer_length(), player.get_state(), last_bit_rate, 0.0, []], pruning=PRUNE)
 			bit_rate = bit_rate_seq[0]
 			# print "Bitrate is: ", bit_rate_seq, " and reward is: ", opt_reward
 			# last_bit_rate = bit_rate

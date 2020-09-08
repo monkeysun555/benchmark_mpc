@@ -168,6 +168,7 @@ def t_main():
 		a_batch = []
 		c_batch = []
 		l_batch = []
+		j_batch = []
 		last_bit_rate = -1
 		buffer_his = []
 
@@ -278,6 +279,7 @@ def t_main():
 			f_batch.append(freezing)
 			a_batch.append(BITRATE[bit_rate])
 			l_batch.append(latency)
+			j_batch.append(sync)
 
 			log_file.write(	str(server.get_time()) + '\t' +
 						    str(BITRATE[bit_rate]) + '\t' +
@@ -313,7 +315,7 @@ def t_main():
 		all_testing_log.write(str(np.sum(f_batch)) + '\t')
 		all_testing_log.write(str(np.mean(c_batch)) + '\t')
 		all_testing_log.write(str(np.mean(l_batch)) + '\t')
-
+		all_testing_log.write(str(np.sum(j_batch)) + '\t')
 		all_testing_log.write('\n')
 	all_testing_log.close()
 

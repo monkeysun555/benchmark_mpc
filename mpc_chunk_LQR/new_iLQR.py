@@ -1,7 +1,7 @@
 import numpy as np
 import math 
 
-LQR_DEBUG = 0
+LQR_DEBUG = 1
 iLQR_SHOW = 0
 RTT_LOW = 0.02
 SEG_DURATION = 1.0
@@ -165,6 +165,11 @@ class iLQR_solver(object):
             print("delta: ", self.delta)
             print("bu: ", self.Bu)
             print("f3 is: ", f_3)
+            print("ce_power", ce_power)
+            print("ce_power1", ce_power_1)
+            print("ce_power2", ce_power_2)
+            print("ce_powert", ce_power_terminate)
+
             # input()
 
         approx_e_f1 = np.round(np.e**f_1, 4)

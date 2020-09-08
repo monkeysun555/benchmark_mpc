@@ -4,6 +4,7 @@ import math
 
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 # BITRATE = [300.0, 6000.0]
+K_P = 4
 
 RTT_LOW = 30.0
 RTT_HIGH = 40.0
@@ -72,7 +73,7 @@ def generate_chunks(ratio):
 	return current_seg_size
 
 # def mpc_solver(pred_tp, k, player_time, playback_time, server_time, buffer_length, state, last_bit_rate, pre_reward, seq, ratio):
-def mpc_solver_chunk(mpc_input):
+def mpc_solver_chunk(mpc_input, pruning):
 	# print mpc_input
 	# Guarante there is available segment
 	ratio = mpc_input[10]
@@ -89,6 +90,7 @@ def mpc_solver_chunk(mpc_input):
 		server_time = mpc_input[4]
 		buffer_length = mpc_input[5]
 		state = mpc_input[6]
+		pre_state = state
 		last_bit_rate = mpc_input[7]
 		pre_reward = mpc_input[8]
 		seq = mpc_input[9][:]
@@ -127,6 +129,7 @@ def mpc_solver_chunk(mpc_input):
 			else:
 				assert buffer_to_accu == 0.0
 				freezing = np.maximum(0.0, download_time - buffer_length)
+
 				playback_time += np.minimum(buffer_length, download_time)
 				buffer_length = np.maximum(buffer_length - download_time, 0.0)
 				buffer_length += CHUNK_DURATION * chunk_num
@@ -176,11 +179,23 @@ def mpc_solver_chunk(mpc_input):
 			# print server_time, playback_time, buffer_length
 			assert chunk_num > 0
 
-
-
+		if pruning and pre_state != 0 and freezing > 0:
+			continue
 		seq.append(i)
 		sys_state.append([pred_tp, k+1, player_time, playback_time, server_time, buffer_length, state, last_bit_rate, current_reward, seq, ratio])
 		# print "done state is: ", sys_state
+
+	if pruning:
+		reward_list = []
+		for s in range(len(sys_state)):
+			reward_list += [[sys_state[s][-2], sys_state[s][-3], s]]
+		# print(len(reward_list))
+		reward_list.sort(reverse=True)
+		new_sys_state = []
+		for i in range(min(K_P, len(reward_list))):
+			new_sys_state += [sys_state[reward_list[i][2]]]
+		sys_state = new_sys_state
+
 	k += 1
 	if k == MPC_STEP:
 		# print len(sys_state)
@@ -196,7 +211,7 @@ def mpc_solver_chunk(mpc_input):
 		while j < current_len:
 			# print sys_state, k, j
 			# print "<?????>"
-			sys_state.extend(mpc_solver_chunk(sys_state[0]))
+			sys_state.extend(mpc_solver_chunk(sys_state[0], pruning))
 			# print "<?------?>"
 			sys_state.pop(0)
 			# print sys_state
@@ -213,8 +228,8 @@ def mpc_find_opt_chunk(all_states):
 			opt_reward = state[8]
 	return opt_action, opt_reward
 
-def mpc_find_action_chunk(mpc_input):
-	all_states = mpc_solver_chunk(mpc_input)
+def mpc_find_action_chunk(mpc_input, pruning=False):
+	all_states = mpc_solver_chunk(mpc_input, pruning)
 	return mpc_find_opt_chunk(all_states)
 
 

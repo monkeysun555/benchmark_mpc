@@ -1,6 +1,8 @@
 # import cplex
 import numpy as np
 
+K_P = 3
+
 BITRATE = [300.0, 500.0, 1000.0, 2000.0, 3000.0, 6000.0]
 # BITRATE = [300.0, 6000.0]
 
@@ -27,7 +29,7 @@ def ReLU(x):
 	return x * (x > 0)
 
 # def mpc_solver(pred_tp, k, player_time, playback_time, server_time, buffer_length, state, last_bit_rate, pre_reward, seq):
-def mpc_solver_seg(mpc_input):
+def mpc_solver_seg(mpc_input, pruning):
 	# print mpc_input
 	# Guarante there is available segment
 	sys_state = []
@@ -107,6 +109,18 @@ def mpc_solver_seg(mpc_input):
 
 		sys_state.append([pred_tp, k+1, player_time, playback_time, server_time, buffer_length, state, last_bit_rate, current_reward, seq])
 
+	# Filter sys_state to k'
+	if pruning:
+		reward_list = []
+		for s in range(len(sys_state)):
+			reward_list += [[sys_state[s][-2], sys_state[s][-3], s]]
+
+		reward_list.sort(reverse=True)
+		new_sys_state = []
+		for i in range(K_P):
+			new_sys_state += [sys_state[reward_list[i][2]]]
+		sys_state = new_sys_state
+
 	k += 1
 	if k == MPC_STEP:
 		# print len(sys_state)
@@ -118,7 +132,7 @@ def mpc_solver_seg(mpc_input):
 		while j < current_len:
 			# print sys_state, k, j
 			# print "<?????>"
-			sys_state.extend(mpc_solver_seg(sys_state[0]))
+			sys_state.extend(mpc_solver_seg(sys_state[0], pruning))
 			# print "<?------?>"
 			sys_state.pop(0)
 			# print sys_state
@@ -135,8 +149,8 @@ def mpc_find_opt_seg(all_states):
 			opt_reward = state[8]
 	return opt_action, opt_reward
 
-def mpc_find_action_seg(mpc_input):
-	all_states = mpc_solver_seg(mpc_input)
+def mpc_find_action_seg(mpc_input, pruning=False):
+	all_states = mpc_solver_seg(mpc_input, pruning)
 	return mpc_find_opt_seg(all_states)
 
 def update_mpc_rec(pred_tp, new_tp):
